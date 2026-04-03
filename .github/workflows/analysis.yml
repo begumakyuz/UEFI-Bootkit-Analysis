@@ -26,3 +26,15 @@ jobs:
         # Webhook triggered this automated security pipeline.
         yara ./yara/blacklotus_bootkit.yar ./scripts/ || echo "No malicious patterns found in the script directory."
         yara ./yara/blacklotus_bootkit.yar ./assets/ || echo "No malicious patterns found in the assets directory."
+
+    - name: Setup Rust Toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Build and Test Rust Entropy Analyzer
+      working-directory: ./rust_analyzer
+      run: |
+        cargo build --release
+        cargo test

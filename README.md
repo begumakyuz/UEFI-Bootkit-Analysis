@@ -109,3 +109,37 @@ Bir CISO (Security Officer) gibi düşündüğümüzde, uygulamanın giriş kale
 > 2. **Auth (MFA) Bypass:** Gitea'daki `oauth2.go` kodları trafiği şifrelese bile, UEFI Bootkit işletim sistemi katmanından önce bellek sayfalarında (Memory Pages) çalışır. Dolayısıyla `SessionID`, hafızaya plain-text (açık metin) olarak düştüğü an bunu Ring-2 yetkisiyle çeker ve kurbanın hesabını çalar.
 >
 > **Sonuç (Reasoning):** Gitea'nın veya herhangi bir uygulamanın yazılımsal güvenlik önlemleri devasadır, ancak "Donanıma en yakın olan her zaman kazanır." UEFI Bootkit, işletim sistemini doğuran "anne" olduğu için, doğan işletim sisteminin altındaki tüm uygulamalar (Gitea, CI/CD, Docker) virüse karşı otomatik olarak körleşmiştir.
+
+---
+
+## Adım 6: Rust Tabanlı Gelişmiş Statik Analiz Aracı (Entropy & IAT Analyzer)
+
+Projemizin QLine değerlendirme kriterleri ve endüstri standartları gereği; Firmware (UEFI) ve OS seviyesindeki (PE/ELF) derlenmiş zararlı yazılımların kodları çalıştırılmadan tespit edilebilmesi için **Rust ile geliştirilmiş bir Statik Analiz Aracı** (`rust_analyzer`) projeye dahil edilmiştir.
+
+Bu araç, `pelite` ve `elf` kütüphanelerini kullanarak PE başlıklarını ayıklar ve özellikle zararlı yazılımların **kendini gizleme (Packing)** yöntemlerini matematiksel entropi analizi ve IAT (Import Address Table) anormallikleri ile yakalar.
+
+### Şifrelenmiş Bölgelerin Tespiti (Shannon Entropisi ve Logaritmik Matematik)
+
+Bir dosya bölümünün (.text, .data vb.) paketlenmiş (UPX, Themida vb.) veya şifrelenmiş olup olmadığını anlamanın en kesin yolu **Shannon Entropisi (H)** hesaplamaktır.
+
+Rust motorumuzda entropi şu logaritmik formül ile hesaplanır:
+`H = -Σ(p_i * log2(p_i))`
+
+**Matematiksel Arka Plan:**
+- **`p_i` (Olasılık):** 0 ile 255 (0xFF) arasındaki her bir byte'ın o bölüm (section) içerisinde kaç kez geçtiğinin (frekans) toplam byte sayısına bölümüdür.
+- **`log2(p_i)` (Logaritmik Ağırlık):** Logaritma base-2, bilgi teorisinde bir bilginin kodlanması için gereken minimum bit sayısını ifade eder. Sıkıştırılmış veya şifrelenmiş zararlı yazılım kodlarında her bir byte'ın görülme olasılığı eşite yakındır (Maksimum belirsizlik ve kaos).
+
+Bu işlem sırasında entropi 0 ile 8 arasında bir değer alır. Aracımız algoritmik olarak **>= 7.2** değerindeki bölümleri tehlikeli "Packed" bölge olarak işaretler. Bu matematiksel analiz, makine öğrenimine bel bağlamadan tamamen istatistiksel bir kanıta dayanır.
+
+### Virtual Address (VA) vs Raw Offset Haritalaması ve IAT Anormalliği (Heuristics)
+
+Dosya diskteyken farklı, RAM'e yüklendiğinde farklı adreslerde bulunur. Rust aracımız `pelite` kütüphanesini kullanarak PE/ELF Header'larındaki **Virtual Address (Sanal Adres)** map'lerini diskteki **Raw Offset'lere (Ham Konum)** çevirerek statik entropi analizini doğru yerden okur.
+
+**IAT (Import Address Table) Eşleştirmesi:**
+Normal bir C/C++ veya Rust uygulaması işletim sistemine ait onlarca/yüzlerce fonksiyonu (API) çağırır, bu yüzden IAT tablosu kabarık olur. Ancak **Packed** bir zararlı yazılım (örn. BlackLotus bootkit payload'u) sadece 1 veya 2 adet bellek açma fonksiyonu (`LoadLibrary`, `GetProcAddress`) ithal edip geri kalan her şeyi RAM'de kendi çözer.
+Sistemimizde kurduğumuz heuristic:
+- Eğer Entropi >= 7.2 ise
+- VE IAT fonksiyon sayısı aşırı küçükse (< 10)
+=> Bu dosyanın dinamik olarak kendini çalışma zamanında açan (Runtime Unpacking) bir zararlı yazılım olduğu **kesin olarak tespit edilir**.
+
+JSON/ASCII çıktı verebilen bu araç, CLI üzerinden `cargo run --release -- --file zararlı.exe --output json` şeklinde kullanılabilir. Otomatik testleri (CI/CD) GitHub Actions üzerinden çalıştırılmaktadır.
