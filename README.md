@@ -1,60 +1,84 @@
-# EFI/UEFI Bootkit Analizi: BlackLotus Vakası (5 Aşamalı Güvenlik İncelemesi)
+# Siber Vaka ve Güvenlik Mimarisi Raporu: Gitea & UEFI Ekstrem Baskın Analizi
 
 **Rol:** Güvenlik Uzmanı / Sistem Mimarı  
-**Proje Kodu:** 33. EFI/UEFI Bootkit Analizi  
-**Tarih:** 2026-04-03  
+**Odak:** Açık Kaynak Güvenlik Mimarisi ve Ring-2 (EFI/UEFI) Bypass Çıkarımları  
+**Analiz Edilen Proje:** [go-gitea/gitea](https://github.com/go-gitea/gitea)  
 
-Bu doküman, "**İşletim sistemi (Windows) bile başlamadan anakart üzerinden sisteme kanca atan bir bootkit malware yapısının analiz edilmesi**" konulu bitirme çalışmasını, Vize Projesi'nin **Zorunlu 5 Aşama Kriteri**'ne harfiyen uyarak sunmaktadır. BlackLotus zararlısı bir vaka çalışması olarak ele alınmış, bu repoya özgü CI/CD siber otomasyonları ve Docker zafiyet inceleme simülasyonları eklenmiştir.
+Bu rapor, İstinye Üniversitesi SecOps vize kriterlerine uygun olarak Gitea Reposunun **5 kritik yaşam döngüsü aşamasını** kaynak kodlar ve teknik kanıtlar eşliğinde analiz etmektedir. Raporun sonunda, uzmanlık alanımız olan **UEFI Bootkit** (BlackLotus vb.) zararlılarının, bu sıkı güvenlik önlemlerini firmware seviyesinden nasıl bypass edebileceğine dair Siber İstihbarat (Reasoning) senaryosu sunulmuştur.
 
 ---
 
-## Adım 1: Kurulum ve install.sh Analizi (Enfeksiyon Mekanizması)
+## Adım 1: Kurulum ve Dağıtım Analizi (Reverse Engineering)
 
-Zararlı yazılımların (özellikle Bootkitlerin) en kritik aşaması kurulum anıdır. Repomuzdaki `install.sh` simülasyon scripti incelendiğinde saldırganın şu yolu izlediği görülür:
-1. İşletim sistemindeki EFI System Partition (ESP) tespit edilir `(/boot/efi)` veya zorla mount edilir.
-2. Açık kaynak araçların aksine `curl | bash` yapmaz; kurbanın sistemine gizlice iner, `bootmgfw.efi` (Windows bootloader) dosyasını yeniden adlandırıp, kendisini orijinal önyükleyici gibi gösterir.
-3. Repodaki YARA kuralları (`yara/blacklotus_bootkit.yar`), zararlının bu kurulum anında bıraktığı PDB dizinlerini (`bootkit.pdb`) saptamak için yazılmıştır.
+Gelişmiş açık kaynak projeler, `curl | bash` gaddarlığından (rastgele dış script çalıştırma riskinden) kaçınır. Gitea yetkilendirme ve kurulumda şu mimariyi izler:
 
-> **Kritik Soru Yanıtı:** İndirilen kaynaklar güvenli değil, sahte bir imza (Baton Drop - CVE-2022-21894) taşıyor. Bootkitler, Hash (İmza) kontrolü yapan Microsoft **Secure Boot** sistemini, eski ama geçerli imzalı bir Windows kernel hatasını istismar ederek atlatır.
+- **Dosya Yolu:** `contrib/systemd/gitea.service`
+- **Analiz:** Uygulama, Linux ortamında `root` olarak çalışmasına kesinlikle izin vermez. İlgili dosyada bulunan `User=git` ve `Group=git` satırları sayesinde, uygulama yalnızca sınırlı `/var/lib/gitea` iznine sahip olan özel bir kullanıcı ile çalışır.
+- **Hash/İmza Güvenliği:** Doğrudan kaynak çekmek yerine Go derlemeli (binary) kurulum sunar. Kurulum aşamasında (Tedarik zinciri saldırılarını önlemek için) SHA256 ve GPG anahtarı kontrolleri projenin Release sayfalarından açıkça istenir. Port delege işlemi için `CapabilityBoundingSet=CAP_NET_BIND_SERVICE` argümanı kullanılır, böylece 1024 altı portları dinlemek için `root` olmaya gerek kalmaz.
 
 ---
 
 ## Adım 2: İzolasyon ve İz Bırakmadan Temizlik (Forensics & Cleanup)
 
-Geleneksel bir yazılımın aksine anakart seviyesine (SMM, Ring -2) yerleşmiş bir virüsü sistemden silmek çok zordur.
+Gitea gibi derin loglama ve DB mimarisine sahip sistemleri sıfır iz (zero-footprint) şeklinde kaldırmak için adli bilişim (Forensics) doğrulaması gerekir.
 
-> **Kritik Soru Yanıtı: Kayıt veya kalıntı dosya kalmadığından tam olarak nasıl emin olacaksınız?**
-1. **İzolasyon:** İşlem, zararlının Windows kernel'i içinden engellenemeyeceği için sistem tamamen kapalıyken (Live USB Forensic dağıtımı kullanılarak) dışarıdan yapılmalıdır.
-2. **NVRAM ve Değişken Temizliği:** UEFI NVRAM değişkenleri olan `BootOrder` ve `BootCurrent` kayıtları incelenip zararlının eklediği entry'ler (Örn: `Setup` veya `MokList`) `efibootmgr` veya BIOS üzerinden sıfırlanmalıdır.
-3. **ESP Dizin Temizliği:** `\EFI\Microsoft\Boot` altındaki sahte `.efi` dosyaları uçurulup orijinali `bcdboot` komutuyla onarılır. Tüm logların (`bcdedit` flagleri dâhil) orijinal sıfır durumuna döndüğü test makinelerinde kanıtlanmıştır.
+- **Kaldırma Komut Dizisi:**
+  1. `systemctl disable --now gitea` (Arka planın koparılması).
+  2. `rm -rf /usr/local/bin/gitea /var/lib/gitea /etc/gitea` (Binary, veri ve konfigürasyon silinimi).
+  3. `userdel -r git` (Kullanıcının sistemden home dizini ile kazınması).
+- **Temizliğin Doğrulanması (İspat):**
+  - **Port Analizi:** `netstat -tulnp | grep gitea` (Gitea’nın 3000 veya 22 portlarını dinleyen hiçbir zombi process kalmadığını kanıtlar).
+  - **Sistem İçi Arama:** `find / -type f -name "*gitea*" 2>/dev/null` (Sunucuda unutulmuş .ini tünellerini veya arka kapı bırakabilme ihtimalini tarar).
+  - **Process (Bellek) Temizliği:** `ps -aux | grep gitea` çıktısında `defunct` bir işlemin RAM'de askıda kalmadığı doğrulanır.
 
 ---
 
 ## Adım 3: İş Akışları (CI/CD) ve Webhook Pipeline Analizi
 
-Bir siber güvenlik reposunda otomasyon şarttır. Bu projedeki `.github/workflows/analysis.yml` dosyasını incelediğimizde YARA analiz motorunun otomatik tetiklendiğini görürüz.
+Kod kalitesini ve güvenliğini koruyan birimin kalbi CI/CD süreçleridir. Gitea deposunda CI pipeline'ları analiz edilmiştir.
 
-> **Kritik Soru Yanıtı: "Webhook" nedir ve bu proje özelinde ne işe yarar?**
-**Webhook**, bir olay gerçekleştiğinde (Push yapılması) başka bir servisi HTTP(S) POST isteğiyle otomatik haberdar eden mekanizmadır. 
-Bu "UEFI Analiz" projesinde CI/CD Akışı: Bir analist repoya şüpheli bir `.efi` dosyası yüklediğinde (Push olayı), GitHub Webhook'u arka plandaki CI (Continuous Integration) sunucusunu uyarır. CI sunucusu, Ubuntu üzerinde otomatik olarak repodaki `analysis.yml` komutlarını çalıştırır ve yüklenen dosyanın **BlackLotus Zararlısı** olup olmadığını `yara` ile test eder. Sistemin insan eli değmeden %100 otomatize güvenliğini sağlar.
+- **Dosya Yolu:** `.github/workflows/pull-db-tests.yml`
+- **Teknik İşleyiş:** Bir yazılımcı "Pull Request" açtığı anda analiz başlar. Bu dosyada, MySQL, PostgreSQL ve MSSQL gibi veri tabanları izole `services:` katmanları (Docker) olarak otomatik ayağa kalkar. Kod değişikliği bu veritabanları üzerinde entegrasyon testlerini (`go test ./...`) insan eli değmeden gerçekleştirir.
+- **Webhook Mekanizması:** Webhook (Kanca), bir olay (Event) meydana geldiğinde (örneğin Push atıldığında), uzak bir URL'ye oluşturulan bir **HTTP POST Payload**'udur. Gitea veya GitHub, bu değişiklik paketini CI sunucusuna (GitHub Actions runner) fırlatır, sunucu "uyandığı" için kodu çekip (checkout) test sürecini başlatır.
 
 ---
 
 ## Adım 4: Docker Mimarisi ve Konteyner Güvenliği
 
-Tehlikeli bir UEFI zararlısını analiz ederken sistemi riske atmamak için repoya bir `Dockerfile` eklenmiştir.
+Modüler ve güvenli dağıtımın zirvesi Docker mimarisidir.
 
-> **Kritik Soru Yanıtı: Docker imajı nedir? Konteyner sisteme nereden erişebilir, VM ile farkı nedir?**
-- **Docker Mimari Simülasyonumuz:** Repomuzdaki `Dockerfile`, Multi-stage ve "Rootless" mimari kullanır. `USER analyst (1000)` komutuyla ayrıcalıkları asgari (Least Privilege) seviyeye çekilmiştir. İçerisine `UEFITool` ve `Python` kurulmuştur.
-- **Konteyner Erişim Sınırı:** Konteynerler Host'un İşletim Sistemi Çekirdeğini (Kernel) kullanır, sanallaştırma yazılımsaldır (cgroups & namespaces). Bootkitler Kernel öncesi çalıştığından Docker içindeyken "tehlikesizdir" çünkü donanımsal (UEFI) erişimleri kısıtlıdır. Ancak privilege escalation olursa Kernel dışına çıkabilir.
-- **Güvenliği Sağlamak:** Bu yüzden `read_only` dosya sistemleri uygulanmalıdır. **VM (Sanal Makine)** ise tamamen bağımsız bir Hypervisor ve sanal anakart sunduğu için UEFI Bootkitlerin gerçek detonasyonu (patlatılıp test edilmesi) Docker'da değil, ancak bir VM ortamında yapılabilir!
+- **Dosya Yolu:** `Dockerfile.rootless`
+- **Katman İncelemesi (Multi-Stage):**
+  1. İlk katman `golang` imajıdır (`builder` veya derleyici). Kod burada `.go` uzantısından okunarak binary dosyasına (Exec) çevrilir.
+  2. Son katmanda `alpine` imajına SADECE bu binary atılır (Attack surface daraltılır; saldırgan `shell` veya `wget` bulamaz).
+- **Rootless vs Root ve K8s Farkı:**
+  Rootless mimaride Dockerfile içine `USER 1000:1000` yazılmıştır. Bu sayede, eğer bir hacker Gitea içinde Zero-Day bulup konteyner içi komut çalıştırsa bile (`RCE`), konteynerin bağlı olduğu Host makineye atlayamaz (Escape). 
+  - *Sanal Makine (VM)*, apayrı bir Kernel (Hypervisor sayesinde) oluşturduğu için kusursuz bir tecrit sunarken; Docker, sunucunun çekirdeğini paylaşır. Rootless model bu açıklarını yamar.
 
 ---
 
-## Adım 5: Kaynak Kod ve Akış Analizi (Threat Modeling & Auth Bypass)
+## Adım 5: Kaynak Kod Analizi ve Tehdit Modelleme (Threat Modeling)
 
-Buradaki `Entry Point`, Windows'un önyükleme uygulamasıdır. Zararlı yazılım `routers` yerine doğrudan anakart boot hizmetlerine kanca atar.
+Bir CISO (Security Officer) gibi düşündüğümüzde, uygulamanın giriş kalesi Auth sistemidir.
 
-> **Kritik Soru Yanıtı: Hacker kaynak koda bakarak sistemi dışarıdan nasıl etkisiz bırakır? (Auth Analizi)**
-- **Hooking Operasyonu:** BlackLotus, bir web uygulaması gibi Session_ID sızdırmaz; IDA Pro ile yazılan `scripts/resolve_gbs.py` kodumuzda da görüldüğü üzere `gBS->LocateProtocol` kullanarak Windows'un `OslArchTransferToKernel` noktasına sızar.
-- **Kimlik Doğrulama Katliamı (Bypass):** Bootkit bu kancayı attıktan sonra en büyük Auth sistemi olan "Windows BitLocker"ı, "HVCI" kalkanlarını ve "Windows Defender" kimlik doğrulama politikalarını (registry / BCD argümanlarını `testsigning` yaparak) bellekten (RAM'den) kalıcı olarak siler ve bypass/atlatma operasyonunu tamamlar.
+- **Entry Point (Dosya Yolu):** `services/auth/oauth2.go` ve `routers/routes.go`
+- **Tehdit Senaryosu (SSO Bypass):**
+  Bir saldırgan, OAuth mekanizmasındaki Callback (`/user/oauth2/:provider/callback`) akışını inceler. Eğer kaynak kodda `State` (Anti-CSRF) tokeni Session Cookie'leri ile kriptografik olarak doğrulanmıyorsa;
+  Saldırgan sahte bir "Github ile Giriş Yap" linki oluşturup, URL'ye kendi `State` parametresini çakar. Kurban bu linke tıkladığında, Gitea kurbanın oturumuna "saldırganın hesabını" bağlar. Saldırgan daha sonra kendi hesabıyla kendi Gitea'sına girdiğinde, doğrudan kurbanın yetkilendirmesiyle (Örn: Admin paneli) içeri girmiş olur.
+
+---
+
+> [!CAUTION]
+> # ⚠️ ÖZEL NOT: UEFI Bootkit Tehdidi ve İzolasyonun Çöküşü (Siber İlişkilendirme)
+>
+> Yukarıdaki 5 adımda; Gitea'nın CI/CD ile kodları koruduğunu, Rootless Docker ile yetkiyi kıstığını, MFA ve Auth kodlarıyla sızıntıları engellediğini kanıtladık. Uygulama "OS Seviyesinde" kusursuzdur.
+>
+> **FAKAT, Sistemin Firmware (Ring-2 / SMM) seviyesine sızmış bir UEFI Bootkit (Örn: BlackLotus) varsa ne olur?**
+>
+> UEFI Zararlısı, Anakartın SPI Flashına veya EFI System Partition (ESP) sektörüne kurulur, yani **İşletim Sistemi (Linux/Windows) dahi yüklenmeden önce** hafızada aktiftir.
+> 
+> **Kesişim Senaryosu:**
+> 1. **Docker İzolasyon Çöküşü:** Docker Rootless güvenliği OS Kernel'ine bağımlıdır. UEFI Bootkit, System Management Mode (SMM) üzerinde çalıştığı için işletim sistemi Kernel'ini (ve `capabilities` kısıtlamalarını) manipüle eder (Hooking işlemi). Kısacası Gitea rootless çalışsa bile, bootkit RAM üzerinde okuma yetkisi (DMA - Direct Memory Access) kazandığı an, Docker konteyneri hiçbir anlam ifade etmez.
+> 2. **Auth (MFA) Bypass:** Gitea'daki `oauth2.go` kodları trafiği şifrelese bile, UEFI Bootkit işletim sistemi katmanından önce bellek sayfalarında (Memory Pages) çalışır. Dolayısıyla `SessionID`, hafızaya plain-text (açık metin) olarak düştüğü an bunu Ring-2 yetkisiyle çeker ve kurbanın hesabını çalar.
+>
+> **Sonuç (Reasoning):** Gitea'nın veya herhangi bir uygulamanın yazılımsal güvenlik önlemleri devasadır, ancak "Donanıma en yakın olan her zaman kazanır." UEFI Bootkit, işletim sistemini doğuran "anne" olduğu için, doğan işletim sisteminin altındaki tüm uygulamalar (Gitea, CI/CD, Docker) virüse karşı otomatik olarak körleşmiştir.
