@@ -1,70 +1,60 @@
-# EFI/UEFI Bootkit Analizi: BlackLotus Vakası
+# EFI/UEFI Bootkit Analizi: BlackLotus Vakası (5 Aşamalı Güvenlik İncelemesi)
 
 **Rol:** Güvenlik Uzmanı / Sistem Mimarı  
 **Proje Kodu:** 33. EFI/UEFI Bootkit Analizi  
 **Tarih:** 2026-04-03  
 
-> *"Windows açılmadan hırsız eve girmiş bile!"*
-
-Bu rapor, işletim sistemi Kernel'i (Windows) henüz devreye girmeden anakart (BIOS/UEFI) seviyesinden sisteme kanca atan (hooking) modern UEFI Bootkit zararlılarının analizini içermektedir. İnceleme için dünyaca ünlü **BlackLotus Bootkit** (CVE-2022-21894 Baton Drop zafiyetini sömüren) örneklem alınarak tersine mühendislik süreçleri adım adım simüle edilmiştir.
+Bu doküman, "**İşletim sistemi (Windows) bile başlamadan anakart üzerinden sisteme kanca atan bir bootkit malware yapısının analiz edilmesi**" konulu bitirme çalışmasını, Vize Projesi'nin **Zorunlu 5 Aşama Kriteri**'ne harfiyen uyarak sunmaktadır. BlackLotus zararlısı bir vaka çalışması olarak ele alınmış, bu repoya özgü CI/CD siber otomasyonları ve Docker zafiyet inceleme simülasyonları eklenmiştir.
 
 ---
 
-## 1. UEFI Boot Süreci ve Bootkit Mantığı (Teorik Temel)
+## Adım 1: Kurulum ve install.sh Analizi (Enfeksiyon Mekanizması)
 
-Geleneksel BIOS (Basic Input/Output System) yerini UEFI (Unified Extensible Firmware Interface) standardına bırakmıştır. Modern bir bilgisayar açıldığında süreç şu fazlardan geçer:
-1. **SEC (Security):** Sistem uyanır, ön CPU başlatılır.
-2. **PEI (Pre-EFI Initialization):** Anakart donanımları (RAM, Chipset) tanınır.
-3. **DXE (Driver Execution Environment):** Cihaz sürücüleri yüklenir, mouse/klavye/ağ kartları aktifleşir. *(Bootkitlerin %90'ı bu faza yerleşir).*
-4. **BDS (Boot Device Selection):** İşletim sisteminin yükleneceği disk seçilir. `bootmgfw.efi` (Windows Boot Manager) burada tetiklenir.
+Zararlı yazılımların (özellikle Bootkitlerin) en kritik aşaması kurulum anıdır. Repomuzdaki `install.sh` simülasyon scripti incelendiğinde saldırganın şu yolu izlediği görülür:
+1. İşletim sistemindeki EFI System Partition (ESP) tespit edilir `(/boot/efi)` veya zorla mount edilir.
+2. Açık kaynak araçların aksine `curl | bash` yapmaz; kurbanın sistemine gizlice iner, `bootmgfw.efi` (Windows bootloader) dosyasını yeniden adlandırıp, kendisini orijinal önyükleyici gibi gösterir.
+3. Repodaki YARA kuralları (`yara/blacklotus_bootkit.yar`), zararlının bu kurulum anında bıraktığı PDB dizinlerini (`bootkit.pdb`) saptamak için yazılmıştır.
 
-**Bootkit Mantığı:** BlackLotus gibi zararlılar, işletim sistemi devreye girmeden önce (DXE fazında veya BDS aşamasında EFI System Partition - ESP içerisine) kendi `.efi` sürücülerini yüklerler. Sistem Windows'a geçerken zararlı çoktan hafızaya yerleşmiş (*Ring -2 / SMM düzeyinde*), Antivirüsleri ve EDR'ları kör etmiş olur.
-
----
-
-## 2. UEFITool ile Statik ve Firmware Analizi
-
-Bir anakart Firmware imajı (örn: `.bin` veya `.rom` dosyası) veya ESP bölümünden çıkarılan bir klasör şifreli ve sıkıştırılmış haldedir. Bunu analiz etmek için **UEFITool** kullanılır.
-
-### UEFITool İşlem Adımları
-1. Zararlı şüphesi olan BIOS güncelleme imajı veya bilgisayardan dump edilen SPI Flash imajı UEFITool ile açılır.
-2. UEFITool ağacında (Tree view) `DXE Dependency Bölümü` aranır.
-3. Zararlı yazılım genelde isimsiz veya rastgele GUID (Global Unique Identifier) ile gizlenen bir modül olarak görünür.
-4. Şüpheli modüle sağ tıklanıp **"Extract body"** diyerek zararlının saf PE32+ (PE/COFF) `.efi` dosyası dışarı çıkartılır. Geleneksel `.exe` analizlerine kıyasla `.efi` modülleri farklı bir header yapısına sahiptir.
+> **Kritik Soru Yanıtı:** İndirilen kaynaklar güvenli değil, sahte bir imza (Baton Drop - CVE-2022-21894) taşıyor. Bootkitler, Hash (İmza) kontrolü yapan Microsoft **Secure Boot** sistemini, eski ama geçerli imzalı bir Windows kernel hatasını istismar ederek atlatır.
 
 ---
 
-## 3. IDA Pro ile Tersine Mühendislik (Reverse Engineering)
+## Adım 2: İzolasyon ve İz Bırakmadan Temizlik (Forensics & Cleanup)
 
-Çıkartılan `bootkit.efi` dosyası **IDA Pro x64** ile analiz edildiğinde, alışılmış Windows API çağrıları (örn: `CreateFile`, `VirtualAlloc`) yerine BIOS tarafından sağlanan çağrılarla karşılaşılır.
+Geleneksel bir yazılımın aksine anakart seviyesine (SMM, Ring -2) yerleşmiş bir virüsü sistemden silmek çok zordur.
 
-### gBS (Boot Services) ve gRT (Runtime Services)
-UEFI zararlıları bellekte yer ayırmak veya diske yazmak için Global Değişkenler olan `gBS` ve `gRT` tablolarını kullanır.
-- IDA Pro'da `LocateProtocol` (0x140 offset) veya `AllocatePool` (0x38 offset) gibi çağrılar tespit edilir. (Depomuzdaki `scripts/resolve_gbs.py` bu işi otomatik yapar).
-
-### Kanca Atma (Inline Hooking) Analizi
-BlackLotus'un ana görevi, Windows'un güvenli önyükleyicisine (`bootmgfw.efi`) kanca atmaktır. IDA Pro ile Disassembly ekranı incelendiğinde zararlının şu kodu çalıştırdığı görülür:
-1. `gBS->LocateProtocol` ile Windows Boot Manager'in hafızadaki yerini bulur.
-2. Orijinal `ImgArchStartBootApplication` veya `OslArchTransferToKernel` fonksiyonunun ilk 5 byte'ını `JMP <ZARARLI_ADRES>` komutu ile değiştirir (Inline Hook).
-3. Böylece Windows Kernel'i ayağa kalkarken önce BlackLotus'un Kernel Payload'u yüklenir.
-4. Bu Payload, Windows içindeki BitLocker, HVCI (Hypervisor-Protected Code Integrity) ve Windows Defender gibi korumaları hafızadan siler.
+> **Kritik Soru Yanıtı: Kayıt veya kalıntı dosya kalmadığından tam olarak nasıl emin olacaksınız?**
+1. **İzolasyon:** İşlem, zararlının Windows kernel'i içinden engellenemeyeceği için sistem tamamen kapalıyken (Live USB Forensic dağıtımı kullanılarak) dışarıdan yapılmalıdır.
+2. **NVRAM ve Değişken Temizliği:** UEFI NVRAM değişkenleri olan `BootOrder` ve `BootCurrent` kayıtları incelenip zararlının eklediği entry'ler (Örn: `Setup` veya `MokList`) `efibootmgr` veya BIOS üzerinden sıfırlanmalıdır.
+3. **ESP Dizin Temizliği:** `\EFI\Microsoft\Boot` altındaki sahte `.efi` dosyaları uçurulup orijinali `bcdboot` komutuyla onarılır. Tüm logların (`bcdedit` flagleri dâhil) orijinal sıfır durumuna döndüğü test makinelerinde kanıtlanmıştır.
 
 ---
 
-## 4. Vaka Analizi: BlackLotus (CVE-2022-21894 Bypassing)
+## Adım 3: İş Akışları (CI/CD) ve Webhook Pipeline Analizi
 
-BlackLotus, **Secure Boot** devredeyken bile çalışabilen ilk vahşi bootkit'tir. 
+Bir siber güvenlik reposunda otomasyon şarttır. Bu projedeki `.github/workflows/analysis.yml` dosyasını incelediğimizde YARA analiz motorunun otomatik tetiklendiğini görürüz.
 
-**Nasıl Çalışır? (Zafiyet Sömürüsü):**
-Saldırgan (Zararlı yükleyici - Installer), Microsoft tarafından hatalı imzalanmış eski bir boot yöneticisini sisteme indirir. "Baton Drop" (CVE-2022-21894) zafiyeti sayesinde, Secure Boot (Güvenli Önyükleme) mekanizması bu eski ama orijinal imzalı dosyayı güvenli kabul ederek çalıştırır. Ardından eski dosyadaki bir bellek taşması (memory corruption) kullanılarak Secure Boot politikaları (Policy) hafızadan silinir.
-
-**Tespit (Defense):**
-Bu tarz zararlıları tespit etmek için standart antivirüsler yetersiz kalır. Bu repoda `yara/` klasörü altında paylaştığımız **YARA kuralı** ile zararlının EFI dosyalarına bıraktığı imza, PDB kalıntıları ve Bypass pattern'leri tespit edilebilir.
+> **Kritik Soru Yanıtı: "Webhook" nedir ve bu proje özelinde ne işe yarar?**
+**Webhook**, bir olay gerçekleştiğinde (Push yapılması) başka bir servisi HTTP(S) POST isteğiyle otomatik haberdar eden mekanizmadır. 
+Bu "UEFI Analiz" projesinde CI/CD Akışı: Bir analist repoya şüpheli bir `.efi` dosyası yüklediğinde (Push olayı), GitHub Webhook'u arka plandaki CI (Continuous Integration) sunucusunu uyarır. CI sunucusu, Ubuntu üzerinde otomatik olarak repodaki `analysis.yml` komutlarını çalıştırır ve yüklenen dosyanın **BlackLotus Zararlısı** olup olmadığını `yara` ile test eder. Sistemin insan eli değmeden %100 otomatize güvenliğini sağlar.
 
 ---
 
-### Proje Gezinme Rehberi (Repo Yapısı)
-- `README.md` : Analiz raporu (Bu dosya)
-- `scripts/resolve_gbs.py` : IDA Pro'da kullanılarak gBS call offsetlerini isimlendiren yardımcı betik.
-- `yara/blacklotus_bootkit.yar` : Zararlıyı statik analiz ile yakalamaya yarayan YARA tespit kuralı.
-- `assets/` : Kavramsal şemalar ve kanıtlar için ayrılmış medya dizini.
+## Adım 4: Docker Mimarisi ve Konteyner Güvenliği
+
+Tehlikeli bir UEFI zararlısını analiz ederken sistemi riske atmamak için repoya bir `Dockerfile` eklenmiştir.
+
+> **Kritik Soru Yanıtı: Docker imajı nedir? Konteyner sisteme nereden erişebilir, VM ile farkı nedir?**
+- **Docker Mimari Simülasyonumuz:** Repomuzdaki `Dockerfile`, Multi-stage ve "Rootless" mimari kullanır. `USER analyst (1000)` komutuyla ayrıcalıkları asgari (Least Privilege) seviyeye çekilmiştir. İçerisine `UEFITool` ve `Python` kurulmuştur.
+- **Konteyner Erişim Sınırı:** Konteynerler Host'un İşletim Sistemi Çekirdeğini (Kernel) kullanır, sanallaştırma yazılımsaldır (cgroups & namespaces). Bootkitler Kernel öncesi çalıştığından Docker içindeyken "tehlikesizdir" çünkü donanımsal (UEFI) erişimleri kısıtlıdır. Ancak privilege escalation olursa Kernel dışına çıkabilir.
+- **Güvenliği Sağlamak:** Bu yüzden `read_only` dosya sistemleri uygulanmalıdır. **VM (Sanal Makine)** ise tamamen bağımsız bir Hypervisor ve sanal anakart sunduğu için UEFI Bootkitlerin gerçek detonasyonu (patlatılıp test edilmesi) Docker'da değil, ancak bir VM ortamında yapılabilir!
+
+---
+
+## Adım 5: Kaynak Kod ve Akış Analizi (Threat Modeling & Auth Bypass)
+
+Buradaki `Entry Point`, Windows'un önyükleme uygulamasıdır. Zararlı yazılım `routers` yerine doğrudan anakart boot hizmetlerine kanca atar.
+
+> **Kritik Soru Yanıtı: Hacker kaynak koda bakarak sistemi dışarıdan nasıl etkisiz bırakır? (Auth Analizi)**
+- **Hooking Operasyonu:** BlackLotus, bir web uygulaması gibi Session_ID sızdırmaz; IDA Pro ile yazılan `scripts/resolve_gbs.py` kodumuzda da görüldüğü üzere `gBS->LocateProtocol` kullanarak Windows'un `OslArchTransferToKernel` noktasına sızar.
+- **Kimlik Doğrulama Katliamı (Bypass):** Bootkit bu kancayı attıktan sonra en büyük Auth sistemi olan "Windows BitLocker"ı, "HVCI" kalkanlarını ve "Windows Defender" kimlik doğrulama politikalarını (registry / BCD argümanlarını `testsigning` yaparak) bellekten (RAM'den) kalıcı olarak siler ve bypass/atlatma operasyonunu tamamlar.

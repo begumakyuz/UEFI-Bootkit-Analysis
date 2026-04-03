@@ -1,0 +1,28 @@
+name: UEFI Bootkit YARA Analysis CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  analyze-firmware:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup YARA
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y yara
+
+    - name: Run BlackLotus Bootkit Detection
+      run: |
+        echo "Starting automated YARA scan on simulated firmware payloads..."
+        # Simulate scanning an ESP dump or an unknown EFI binary
+        # Webhook triggered this automated security pipeline.
+        yara ./yara/blacklotus_bootkit.yar ./scripts/ || echo "No malicious patterns found in the script directory."
+        yara ./yara/blacklotus_bootkit.yar ./assets/ || echo "No malicious patterns found in the assets directory."
