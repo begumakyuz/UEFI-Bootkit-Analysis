@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  uefi-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME:-uefi_analyzer_container}
+    env_file:
+      - .env
+    volumes:
+      - ./assets:/sandbox/assets
+      - ./yara:/sandbox/yara
+      - ./scripts:/sandbox/scripts
+    ports:
+      - "${DOCKER_PORT:-8080}:8080"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # Gitea'nın rootless konseptini desteklemek için Salt Okunur Root FS kurgusu
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run

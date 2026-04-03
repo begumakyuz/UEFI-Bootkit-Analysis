@@ -8,6 +8,33 @@ Bu rapor, İstinye Üniversitesi SecOps vize kriterlerine uygun olarak Gitea Rep
 
 ---
 
+## 🚀 Proje Kurulumu, Çalıştırılması ve Test Edilmesi
+
+Hoca / Denetmen olarak bu repoyu lokalinizde denemek isterseniz şu adımları izleyin:
+
+### 1. Çalıştırma (Docker Compose & Env)
+Proje artık tam teşekküllü bir `.env` altyapısı ve `docker-compose.yml` barındırmaktadır:
+```bash
+# Repo indirilir
+git clone https://github.com/begumakyuz/UEFI-Bootkit-Analysis.git
+cd UEFI-Bootkit-Analysis
+
+# Güvenlik Konfigürasyonu Kopyalanır (.env oluşturulur)
+cp .env.example .env
+
+# UEFI Analiz Sandbox'ı Rootless Modda Ayağa Kaldırılır
+docker compose up -d
+```
+
+### 2. Kod Testlerinin Koşturulması (Tests)
+Yazılan güvenlik tarama kodlarının otomasyon testlerini çalıştırmak için `tests/` klasörü hazırlanmıştır:
+```bash
+# Python unittest ile otomatik senaryoları çalıştırın
+python -m unittest discover -s tests
+```
+
+---
+
 ## Adım 1: Kurulum ve Dağıtım Analizi (Reverse Engineering)
 
 Gelişmiş açık kaynak projeler, `curl | bash` gaddarlığından (rastgele dış script çalıştırma riskinden) kaçınır. Gitea yetkilendirme ve kurulumda şu mimariyi izler:
