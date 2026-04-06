@@ -35,6 +35,11 @@ pub fn calculate_shannon_entropy(data: &[u8]) -> f64 {
         }
     }
 
+    // TODO(Architect): Implement Chi-Square distribution check alongside Shannon entropy
+    // for a more robust heuristic against advanced polymorphic engines.
+    // TODO(Security): Cross-reference section entropy peaks with IAT count to dynamically
+    // flag in-memory unpack loops (e.g. VirtualAlloc + memcpy signatures).
+
     entropy
 }
 

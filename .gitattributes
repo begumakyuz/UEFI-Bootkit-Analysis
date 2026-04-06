@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.rs text linguist-language=Rust
+*.py text linguist-language=Python
+*.sh text eol=lf

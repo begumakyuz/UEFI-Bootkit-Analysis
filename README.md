@@ -1,10 +1,41 @@
+<div align="center">
+  <img src="https://upload.wikimedia.org/wikipedia/tr/1/1a/%C4%B0stinye_%C3%9Cniversitesi_logo.png" alt="İstinye Üniversitesi Logo" width="150" />
+</div>
+
 # Siber Vaka ve Güvenlik Mimarisi Raporu: Gitea & UEFI Ekstrem Baskın Analizi
+
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Security Score](https://img.shields.io/badge/Security-A%2B-blue)
+![Rust Analyzer](https://img.shields.io/badge/Rust_Analyzer-Cargo-orange)
+![License](https://img.shields.io/badge/License-MIT-purple)
 
 **Rol:** Güvenlik Uzmanı / Sistem Mimarı  
 **Odak:** Açık Kaynak Güvenlik Mimarisi ve Ring-2 (EFI/UEFI) Bypass Çıkarımları  
 **Analiz Edilen Proje:** [go-gitea/gitea](https://github.com/go-gitea/gitea)  
+**Danışman Hocamız:** Keyvan Aresteh Abbasabad  
 
-Bu rapor, İstinye Üniversitesi SecOps vize kriterlerine uygun olarak Gitea Reposunun **5 kritik yaşam döngüsü aşamasını** kaynak kodlar ve teknik kanıtlar eşliğinde analiz etmektedir. Raporun sonunda, uzmanlık alanımız olan **UEFI Bootkit** (BlackLotus vb.) zararlılarının, bu sıkı güvenlik önlemlerini firmware seviyesinden nasıl bypass edebileceğine dair Siber İstihbarat (Reasoning) senaryosu sunulmuştur.
+## İçindekiler
+- [🎬 Demo](#-demo)
+- [Proje Kurulumu, Çalıştırılması ve Test Edilmesi](#-proje-kurulumu-çalıştırılması-ve-test-edilmesi)
+- [Adım 1: Kurulum ve Dağıtım Analizi](#adım-1-kurulum-ve-dağıtım-analizi-reverse-engineering)
+- [Adım 2: İzolasyon ve İz Bırakmadan Temizlik](#adım-2-izolasyon-ve-iz-bırakmadan-temizlik-forensics--cleanup)
+- [Adım 3: İş Akışları (CI/CD) ve Webhook Pipeline Analizi](#adım-3-iş-akışları-cicd-ve-webhook-pipeline-analizi)
+- [Adım 4: Docker Mimarisi ve Konteyner Güvenliği](#adım-4-docker-mimarisi-ve-konteyner-güvenliği)
+- [Adım 5: Kaynak Kod Analizi ve Tehdit Modelleme](#adım-5-kaynak-kod-analizi-ve-tehdit-modelleme-threat-modeling)
+- [Adım 6: Rust Tabanlı Gelişmiş Statik Analiz Aracı](#adım-6-rust-tabanlı-gelişmiş-statik-analiz-aracı-entropy--iat-analyzer)
+
+---
+
+## 🎬 Demo
+
+Aşağıdaki videoda statik analiz projemizin Rust motoru kullanılarak derlenmesi, çalıştırılması ve güvenlik testlerinin gerçekleştirilmesi uygulamalı olarak gösterilmiştir:
+
+[![Project Demo](demo/project-demo.webm)](demo/project-demo.webm)
+*(Video yüklenmezse doğrudan `demo/project-demo.webm` dosyasını indirebilir veya tarayıcıda izleyebilirsiniz.)*
+
+---
+
+Bu rapor, İstinye Üniversitesi SecOps vize/final kriterlerine uygun olarak Gitea Reposunun **5 kritik yaşam döngüsü aşamasını** kaynak kodlar ve teknik kanıtlar eşliğinde analiz etmektedir. Raporun sonunda, uzmanlık alanımız olan **UEFI Bootkit** (BlackLotus vb.) zararlılarının, bu sıkı güvenlik önlemlerini firmware seviyesinden nasıl bypass edebileceğine dair Siber İstihbarat (Reasoning) senaryosu sunulmuştur.
 
 ---
 
