@@ -28,10 +28,12 @@ jobs:
         yara ./yara/blacklotus_bootkit.yar ./assets/ || echo "No malicious patterns found in the assets directory."
 
     - name: Setup Rust Toolchain
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
       with:
-        toolchain: stable
-        override: true
+        workspaces: "./rust_analyzer -> target"
 
     - name: Build and Test Rust Entropy Analyzer
       working-directory: ./rust_analyzer

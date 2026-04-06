@@ -45,7 +45,8 @@ jobs:
             README.md
             LICENSE
             docker-compose.yml
-          body_path: README.md
+          generate_release_notes: true
+          allow_updates: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -54,9 +55,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0-auto
-          name: Initial Analysis Release v1.0.0
+          name: Analysis Release v1.0.0
           draft: false
           prerelease: false
+          generate_release_notes: true
+          allow_updates: true
           files: |
             README.md
             LICENSE
