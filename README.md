@@ -1,5 +1,6 @@
 <div align="center">
-  <img src="https://upload.wikimedia.org/wikipedia/tr/1/1a/%C4%B0stinye_%C3%9Cniversitesi_logo.png" alt="İstinye Üniversitesi Logo" width="150" />
+  <img src="https://raw.githubusercontent.com/go-gitea/gitea/main/public/img/logo.png" alt="Gitea Logo" width="100" />
+  <img src="https://cdn.istinye.edu.tr/sites/default/files/isu-logo.png" alt="İstinye Üniversitesi Logo" width="250" />
 </div>
 
 # Siber Vaka ve Güvenlik Mimarisi Raporu: Gitea & UEFI Ekstrem Baskın Analizi
@@ -30,8 +31,8 @@
 
 Aşağıdaki videoda statik analiz projemizin Rust motoru kullanılarak derlenmesi, çalıştırılması ve güvenlik testlerinin gerçekleştirilmesi uygulamalı olarak gösterilmiştir:
 
-[![Project Demo](demo/project-demo.webm)](demo/project-demo.webm)
-*(Video yüklenmezse doğrudan `demo/project-demo.webm` dosyasını indirebilir veya tarayıcıda izleyebilirsiniz.)*
+[![Project Demo](demo/project-demo.webp)](demo/project-demo.webp)
+*(Video yüklenmezse doğrudan `demo/project-demo.webp` dosyasını indirebilir veya tarayıcıda izleyebilirsiniz.)*
 
 ---
 
