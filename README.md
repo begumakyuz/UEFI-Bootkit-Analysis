@@ -31,7 +31,7 @@
 
 Aşağıdaki videoda statik analiz projemizin Rust motoru kullanılarak derlenmesi, çalıştırılması ve güvenlik testlerinin gerçekleştirilmesi uygulamalı olarak gösterilmiştir:
 
-[![Project Demo](demo/project-demo.webp)](demo/project-demo.webp)
+[![Project Demo](demo/preview.png)](demo/project-demo.webp)
 *(Video yüklenmezse doğrudan `demo/project-demo.webp` dosyasını indirebilir veya tarayıcıda izleyebilirsiniz.)*
 
 ---
