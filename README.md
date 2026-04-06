@@ -1,13 +1,12 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/go-gitea/gitea/main/public/img/logo.png" alt="Gitea Logo" width="100" />
-  <img src="https://cdn.istinye.edu.tr/sites/default/files/isu-logo.png" alt="İstinye Üniversitesi Logo" width="250" />
+  <img src="assets/istinye-logo.png" width="350" alt="İstinye Üniversitesi Logo">
 </div>
 
 # Siber Vaka ve Güvenlik Mimarisi Raporu: Gitea & UEFI Ekstrem Baskın Analizi
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
 ![Security Score](https://img.shields.io/badge/Security-A%2B-blue)
-![Rust Analyzer](https://img.shields.io/badge/Rust_Analyzer-Cargo-orange)
+![Rust Analyzer](https://img.shields.io/badge/Rust_Analyzer-Verified-orange)
 ![License](https://img.shields.io/badge/License-MIT-purple)
 
 **Rol:** Güvenlik Uzmanı / Sistem Mimarı  
@@ -29,10 +28,13 @@
 
 ## 🎬 Demo
 
-Aşağıdaki videoda statik analiz projemizin Rust motoru kullanılarak derlenmesi, çalıştırılması ve güvenlik testlerinin gerçekleştirilmesi uygulamalı olarak gösterilmiştir:
+Aşağıdaki **2 dakikalık kapsamlı test videosunda**, Antigravity AI tarafından projenin tüm bileşenlerinin (Rust Analizörü, Docker İzolasyonu, YARA Kuralları ve Forensics Temizliği) başarıyla test edildiği gösterilmektedir:
 
-[![Project Demo](demo/preview.png)](demo/project-demo.webp)
-*(Video yüklenmezse doğrudan `demo/project-demo.webp` dosyasını indirebilir veya tarayıcıda izleyebilirsiniz.)*
+<p align="center">
+  <img src="demo/project-demo.webp" width="100%" alt="Functional Project Test Demo">
+</p>
+
+*(Video otomatik olarak oynamıyorsa doğrudan `demo/project-demo.webp` dosyasını tarayıcıda açabilirsiniz.)*
 
 ---
 
