@@ -42,7 +42,18 @@ Bu rapor, İstinye Üniversitesi SecOps vize/final kriterlerine uygun olarak Git
 
 ---
 
-## 🚀 Proje Kurulumu, Çalıştırılması ve Test Edilmesi
+## 🚀 Professional v2.0: Yeni Güvenlik Mimarisi Özellikleri
+
+Bu proje, sadece basit bir analizörden tam teşekküllü bir **UEFI Güvenlik Suite**'ine dönüştürülmüştür:
+
+1.  **Gelişmiş Rust Analiz Motoru (v2.0):** Shannon Entropy'ye ek olarak **CRC32 Header Integrity** kontrolü ve **IAT Cross-Reference** analizi eklenmiştir.
+2.  **Master Orchestrator (Python):** Rust analizörü ve YARA taramasını koordine eden `scripts/firmware_integrity.py` geliştirilmiştir.
+3.  **Teknik Derinlik (Docs):** SMM (Ring -2) bypass ve HVCI atlatma tekniklerini inceleyen [UEFI Reverse Engineering Manual](docs/uefi_reverse_engineering.md) eklenmiştir.
+4.  **İmza ve Kimlik (Verified):** Tüm geliştirme süreçleri resmi kurum kimliği (**Begüm AKYÜZ**) ile imzalanmıştır.
+
+---
+
+## Proje Kurulumu, Çalıştırılması ve Test Edilmesi
 
 Hoca / Denetmen olarak bu repoyu lokalinizde denemek isterseniz şu adımları izleyin:
 
