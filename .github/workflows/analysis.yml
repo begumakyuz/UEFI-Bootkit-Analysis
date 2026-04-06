@@ -22,10 +22,9 @@ jobs:
     - name: Run BlackLotus Bootkit Detection
       run: |
         echo "Starting automated YARA scan on simulated firmware payloads..."
-        # Simulate scanning an ESP dump or an unknown EFI binary
-        # Webhook triggered this automated security pipeline.
         yara ./yara/blacklotus_bootkit.yar ./scripts/ || echo "No malicious patterns found in the script directory."
         yara ./yara/blacklotus_bootkit.yar ./assets/ || echo "No malicious patterns found in the assets directory."
+        yara ./yara/blacklotus_bootkit.yar ./README.md
 
     - name: Setup Rust Toolchain
       uses: dtolnay/rust-toolchain@stable

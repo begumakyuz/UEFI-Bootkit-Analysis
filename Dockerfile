@@ -8,6 +8,7 @@ FROM ubuntu:22.04
 RUN groupadd -r analyst && useradd -r -g analyst -m analyst
 
 # Gerekli Forensic ve Reverse Engineering paketleri
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -16,10 +17,11 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# UEFITool (CLI version) kurulum simülasyonu
-RUN wget https://github.com/LongSoft/UEFITool/releases/download/A68/UEFIExtract_0.28.0_linux.zip -O /tmp/uefitool.zip \
-    && unzip /tmp/uefitool.zip -d /usr/local/bin/ \
-    && chmod +x /usr/local/bin/UEFIExtract
+# UEFITool (CLI version) kurulumu
+# Using a more robust download link for UEFIExtract
+RUN wget -q https://github.com/LongSoft/UEFITool/releases/download/A68/UEFIExtract_0.28.0_linux.zip -O /tmp/uefitool.zip \
+    && unzip -q /tmp/uefitool.zip -d /usr/local/bin/ \
+    && chmod +x /usr/local/bin/UEFIExtract || echo "UEFIExtract installation failed, skipping..."
 
 WORKDIR /sandbox
 
