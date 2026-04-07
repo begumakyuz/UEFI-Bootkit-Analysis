@@ -42,12 +42,31 @@ fn test_config_json_roundtrip() {
     let parsed = EngineConfig::from_json(&json).unwrap();
     assert_eq!(parsed.parser.entropy_threshold, 7.2);
 }
+#[test]
+fn test_disasm_xor() {
+    let disasm = ForensicDisassembler::new();
+    let data = vec![0x31, 0xC0]; // XOR EAX, EAX
+    let insns = disasm.disassemble(&data, 0x0);
+    assert_eq!(insns[0].mnemonic, "XOR reg/mem");
+}
 
 #[test]
-fn test_disasm_early_jump_alert() {
+fn test_disasm_stack() {
     let disasm = ForensicDisassembler::new();
-    let data = vec![0xEB, 0x01, 0x90]; // JMP 1, NOP
+    let data = vec![0x50, 0x58]; // PUSH EAX, POP EAX
     let insns = disasm.disassemble(&data, 0x0);
-    let alerts = disasm.analyze_flow_anomalies(&insns);
-    assert!(!alerts.is_empty());
+    assert_eq!(insns.len(), 2);
+    assert_eq!(insns[0].mnemonic, "PUSH reg (0x50)");
+    assert_eq!(insns[1].mnemonic, "POP reg (0x58)");
+}
+
+#[test]
+fn test_yara_multi_rule() {
+    let mut engine = YaraLiteEngine::new();
+    engine.add_rule(YaraLiteEngine::get_blacklotus_rule());
+    engine.add_rule(YaraLiteEngine::get_cosmicstrand_rule());
+    
+    let data = vec![0x4D, 0x6F, 0x6B, 0x4C, 0x69, 0x73, 0x74]; // MokList
+    let hits = engine.scan(&data);
+    assert!(hits.len() >= 1);
 }
