@@ -1,3 +1,6 @@
+pub mod html_reporter;
+pub mod yara_parser;
+pub mod disassembler;
 pub mod config;
 pub mod nvram;
 pub mod entropy;
