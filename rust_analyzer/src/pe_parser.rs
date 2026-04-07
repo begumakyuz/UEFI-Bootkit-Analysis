@@ -20,15 +20,23 @@ pub struct PEAnalysisResult {
     pub sections: Vec<SectionAnalysis>,
     pub iat_size: usize,
     pub is_suspicious: bool,
+    pub entropy_explanation: String,
     pub machine: u16,
     pub subsystem: u16,
     pub entry_point: u32,
     pub image_base: u64,
+    pub ep_is_suspicious: bool,
 }
 
 const ENTROPY_THRESHOLD: f64 = 7.2;
 const IAT_SUSPICIOUS_THRESHOLD: usize = 10;
 
+/// Analyzes a PE file for common UEFI bootkit characteristics.
+/// 
+/// This function performs:
+/// 1. Section enumeration and entropy calculation (detecting packed payloads).
+/// 2. Import Address Table (IAT) density analysis (malicious drivers often have few imports).
+/// 3. Entry Point (EP) validation (checking if the EP resides in an unusual or non-standard section).
 pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, AnalyzerError> {
     let file_map = match pelite::FileMap::open(path) {
         Ok(m) => m,
@@ -45,6 +53,7 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, AnalyzerError> {
 
     let mut sections = Vec::new();
     let mut packed_sections_count = 0;
+    let mut max_entropy = 0.0;
 
     for section in pe.section_headers() {
         let name_bytes = &section.Name;
@@ -56,6 +65,10 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, AnalyzerError> {
         };
 
         let entropy = calculate_shannon_entropy(raw_data);
+        if entropy > max_entropy {
+            max_entropy = entropy;
+        }
+
         let is_packed = entropy >= ENTROPY_THRESHOLD;
         if is_packed {
             packed_sections_count += 1;
@@ -78,17 +91,38 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, AnalyzerError> {
         }
     }
 
+    // Logic: High entropy + small IAT is a strong indicator of a packed malware loader.
     let is_suspicious = packed_sections_count > 0 && iat_size < IAT_SUSPICIOUS_THRESHOLD;
+    
+    let entropy_explanation = format!(
+        "Max section entropy ({:.2}) indicates {} content.",
+        max_entropy,
+        if max_entropy > 7.5 { "highly encrypted/packed" } else { "standard" }
+    );
+
+    // Advanced EP Analysis: Check if AddressOfEntryPoint points to an unusual section.
+    // Legitimate UEFI drivers usually have their EP in the first code section (.text).
+    let entry_point = optional_header.AddressOfEntryPoint;
+    let mut ep_is_suspicious = true;
+    for section in &sections {
+        if entry_point >= section.virtual_address && entry_point < (section.virtual_address + section.virtual_size) {
+            if section.name == ".text" || section.name == "CODE" {
+                ep_is_suspicious = false;
+            }
+        }
+    }
 
     Ok(PEAnalysisResult {
         file_path: path.to_string(),
         sections,
         iat_size,
         is_suspicious,
+        entropy_explanation,
         machine: file_header.Machine,
         subsystem: optional_header.Subsystem,
-        entry_point: optional_header.AddressOfEntryPoint,
+        entry_point,
         image_base: optional_header.ImageBase,
+        ep_is_suspicious,
     })
 }
 

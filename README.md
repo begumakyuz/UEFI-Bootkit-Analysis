@@ -29,7 +29,7 @@
 
 ## 🎬 Demo
 
-Aşağıdaki **2 dakikalık kapsamlı test videosunda**, Antigravity AI tarafından projenin tüm bileşenlerinin (Rust Analizörü, Docker İzolasyonu, YARA Kuralları ve Forensics Temizliği) başarıyla test edildiği gösterilmektedir:
+Aşağıdaki **2 dakikalık kapsamlı test videosunda**, Antigravity AI tarafından projenin tüm bileşenlerinin (Rust Analizörü v3.0, NVRAM Scanner, Docker İzolasyonu, YARA Kuralları ve Forensics Temizliği) başarıyla test edildiği gösterilmektedir:
 
 
 
@@ -41,22 +41,21 @@ Aşağıdaki **2 dakikalık kapsamlı test videosunda**, Antigravity AI tarafın
   <img src="demo/project-demo.webp" width="100%" alt="Functional Project Test Demo">
 </p>
 
-*(Video otomatik olarak oynamıyorsa doğrudan `demo/project-demo.webp` dosyasını tarayıcıda açabilirsiniz.)*
-
 ---
 
 Bu rapor, İstinye Üniversitesi SecOps vize/final kriterlerine uygun olarak Gitea Reposunun **5 kritik yaşam döngüsü aşamasını** kaynak kodlar ve teknik kanıtlar eşliğinde analiz etmektedir. Raporun sonunda, uzmanlık alanımız olan **UEFI Bootkit** (BlackLotus vb.) zararlılarının, bu sıkı güvenlik önlemlerini firmware seviyesinden nasıl bypass edebileceğine dair Siber İstihbarat (Reasoning) senaryosu sunulmuştur.
 
 ---
 
-## 🚀 Professional v2.0: Yeni Güvenlik Mimarisi Özellikleri
+## 🚀 Professional v3.0: Elite Forensic Engine
 
-Bu proje, sadece basit bir analizörden tam teşekküllü bir **UEFI Güvenlik Suite**'ine dönüştürülmüştür:
+Bu proje, sadece basit bir analizörden tam teşekküllü bir **UEFI Forensic Suite**'ine dönüştürülmüştür:
 
-1.  **Gelişmiş Rust Analiz Motoru (v2.0):** Shannon Entropy'ye ek olarak **CRC32 Header Integrity** kontrolü ve **IAT Cross-Reference** analizi eklenmiştir.
-2.  **Master Orchestrator (Python):** Rust analizörü ve YARA taramasını koordine eden `scripts/firmware_integrity.py` geliştirilmiştir.
-3.  **Teknik Derinlik (Docs):** SMM (Ring -2) bypass ve HVCI atlatma tekniklerini inceleyen [UEFI Reverse Engineering Manual](docs/uefi_reverse_engineering.md) eklenmiştir.
-4.  **İmza ve Kimlik (Verified):** Tüm geliştirme süreçleri resmi kurum kimliği (**Begüm AKYÜZ**) ile imzalanmıştır.
+1.  **Gelişmiş Rust Analiz Motoru (v3.0):** Shannon Entropy'ye ek olarak **Advanced Entry Point (EP)** analizi eklenmiştir. Orijinal kod kesitleri dışındaki giriş noktaları otomatik olarak "Suspicious" işaretlenir.
+2.  **UEFI NVRAM Scanner:** Bootkit'lerin persistency (kalıcılık) için kullandığı UEFI değişkenlerini (MokListTrusted, BootOrder) tarayan yeni modül eklenmiştir.
+3.  **Master Orchestrator (Python):** Rust analizörü, NVRAM tarayıcı ve YARA motorunu koordine eden v3.0 mimarisi devreye alınmıştır.
+4.  **Derinlemesine Raporlama:** Markdown ve JSON çıktılarına "Mitigation Strategies" ve "Forensic Findings" bazlı aksiyon önerileri eklenmiştir.
+5.  **İmza ve Kimlik (Verified):** Tüm geliştirme süreçleri resmi kurum kimliği (**Begüm AKYÜZ**) ile imzalanmıştır.
 
 ---
 
