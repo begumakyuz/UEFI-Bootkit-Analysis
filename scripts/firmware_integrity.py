@@ -1,112 +1,165 @@
 #!/usr/bin/env python3
 """
-Firmware Integrity Orchestrator (v2.0)
-Part of Begum Akyuz UEFI Security Suite.
+Firmware Integrity Orchestrator (v3.0)
+Advanced Security Analysis Suite for UEFI/EFI Integrity.
 
-This script coordinates Rust-based static analysis and YARA signature matching
-to provide a comprehensive security verdict on EFI binaries.
+This script acts as the master orchestrator, combining Rust-based static 
+analysis, deep signature scanning, and YARA-based legacy pattern matching.
 """
 
 import subprocess
 import os
 import sys
 import json
+import datetime
+import logging
 
-def run_rust_analysis(file_path):
-    print(f"[*] Starting Rust-based Deep Static Analysis on {file_path}...")
-    try:
-        # Assuming the binary is built in rust_analyzer/target/release/rust_analyzer
-        # For simulation/demo purposes, we use the local cargo run if available
-        # But here we simulate the logic
-        result = subprocess.run(
-            ["cargo", "run", "--release", "--", "--file", file_path, "--output", "json"],
-            cwd="./rust_analyzer",
-            capture_output=True,
-            text=True
-        )
-        if result.returncode == 0:
-            return json.loads(result.stdout)
-        else:
-            print(f"[!] Rust Analyzer failed: {result.stderr}")
+# Configure logging for professional forensics output
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+
+class FirmwareAnalyst:
+    def __init__(self, target_path):
+        self.target = target_path
+        self.report_data = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "target": os.path.basename(target_path),
+            "verdict": "UNKNOWN",
+            "engines": []
+        }
+
+    def run_rust_engine(self, deep_scan=True):
+        """Executes the Rust static analyzer with optional deep signature scanning."""
+        logging.info(f"Launching Rust Analysis Engine on {self.target}...")
+        cmd = ["cargo", "run", "--release", "--", "--file", self.target, "--output", "json"]
+        if deep_scan:
+            cmd.append("--signatures")
+            
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd="./rust_analyzer",
+                capture_output=True,
+                text=True,
+                timeout=30 # Safety timeout
+            )
+            if result.returncode == 0:
+                parsed = json.loads(result.stdout)
+                self.report_data["engines"].append({
+                    "name": "RustCore",
+                    "status": "Success",
+                    "data": parsed
+                })
+                return parsed
+            else:
+                logging.error(f"Rust Core Error: {result.stderr}")
+                return None
+        except Exception as e:
+            logging.error(f"Failed to execute Rust Engine: {e}")
             return None
-    except FileNotFoundError:
-        print("[!] Rust toolchain not found. Skipping static segment analysis.")
-        return {"status": "skipped", "reason": "toolchain_missing"}
 
-def run_yara_scan(file_path):
-    print(f"[*] Starting YARA Signature Matching on {file_path}...")
-    rule_path = "./yara/blacklotus_bootkit.yar"
-    if not os.path.exists(rule_path):
-        print(f"[!] YARA rule not found at {rule_path}")
-        return []
-    
-    try:
-        result = subprocess.run(
-            ["yara", rule_path, file_path],
-            capture_output=True,
-            text=True
-        )
-        matches = result.stdout.strip().split("\n")
-        return [m for m in matches if m]
-    except FileNotFoundError:
-        print("[!] YARA engine not found.")
-        return []
+    def run_yara_engine(self):
+        """Runs legacy YARA rules for known bootkit strings."""
+        logging.info("Initializing YARA Signature Matcher...")
+        rule_path = "./yara/blacklotus_bootkit.yar"
+        if not os.path.exists(rule_path):
+            logging.warning(f"YARA rules missing at {rule_path}. Skipping.")
+            return []
+            
+        try:
+            # Check if yara is installed
+            result = subprocess.run(["yara", "--version"], capture_output=True)
+            if result.returncode != 0:
+                 return []
+                 
+            result = subprocess.run(
+                ["yara", rule_path, self.target],
+                capture_output=True,
+                text=True
+            )
+            matches = [m.strip() for m in result.stdout.split("\n") if m.strip()]
+            self.report_data["engines"].append({
+                "name": "YaraLegacy",
+                "status": "Success",
+                "matches": matches
+            })
+            return matches
+        except FileNotFoundError:
+            logging.warning("YARA executable not found in PATH.")
+            return []
 
-def consolidate_report(file_path):
-    print("=" * 60)
-    print(f"SECURITY AUDIT REPORT: {os.path.basename(file_path)}")
-    print("=" * 60)
-    
-    rust_report = run_rust_analysis(file_path)
-    yara_matches = run_yara_scan(file_path)
-    
-    report_data = {
-        "target": os.path.basename(file_path),
-        "verdict": "CLEAN",
-        "rust_anomalies": rust_report,
-        "yara_matches": yara_matches
-    }
-    
-    print("\n--- [VERDICT] ---")
-    
-    is_malicious = False
-    
-    if rust_report and rust_report.get("is_suspicious"):
-        print("[🚩] STATIC ANOMALY: High entropy or suspicious IAT detected by Rust Engine.")
-        is_malicious = True
+    def evaluate_threats(self, rust_data, yara_matches):
+        """Aggregates multi-engine results to produce a final security verdict."""
+        is_suspicious = False
+        reasons = []
+
+        # Analyze Rust Core Findings
+        if rust_data:
+            for verdict in rust_data:
+                v_type = verdict.get("type")
+                if v_type == "PE":
+                    if verdict.get("entropy", 0) > 7.2:
+                        is_suspicious = True
+                        reasons.append(f"High Entropy ({verdict['entropy']:.2f}) - Packed Payload?")
+                elif v_type == "SIGNATURES":
+                    hits = verdict.get("hits", [])
+                    if hits:
+                        is_suspicious = True
+                        reasons.append(f"{len(hits)} Deep Signatures Triggered.")
+
+        # Analyze YARA Matches
+        if yara_matches:
+            is_suspicious = True
+            reasons.append(f"{len(yara_matches)} YARA String matches detected.")
+
+        self.report_data["verdict"] = "MALICIOUS" if is_suspicious else "CLEAN"
+        self.report_data["threat_reasons"] = reasons
         
-    if yara_matches:
-        print(f"[🚩] SIGNATURE MATCH: {len(yara_matches)} rules triggered.")
-        for match in yara_matches:
-            print(f"    -> {match}")
-        is_malicious = True
-        
-    if is_malicious:
-        report_data["verdict"] = "MALICIOUS"
-        print("\n[CONCLUSION]: MALICIOUS PAYLOAD DETECTED.")
-        print("ACTION: Quarantine file and perform SPI Flash integrity check.")
-    else:
-        print("\n[CONCLUSION]: NO IMMEDIATE THREAT DETECTED.")
-        print("ACTION: Monitor for Runtime Services API hooking.")
+        return is_suspicious
 
-    # Save report to persistence layer
-    reports_dir = "/sandbox/reports"
-    if not os.path.exists(reports_dir):
+    def save_forensic_evidence(self):
+        """Persists the consolidated report to the forensic reports directory."""
+        reports_dir = "./reports"
         os.makedirs(reports_dir, exist_ok=True)
+        
+        report_path = os.path.join(reports_dir, "security_audit_v3.json")
+        try:
+            with open(report_path, "w") as f:
+                json.dump(self.report_data, f, indent=4)
+            logging.info(f"Forensic bundle saved: {report_path}")
+        except Exception as e:
+            logging.error(f"Persistence Failed: {e}")
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python firmware_integrity.py <path_to_efi>")
+        sys.exit(1)
+        
+    target = sys.argv[1]
+    if not os.path.exists(target):
+        logging.error(f"Target not found: {target}")
+        sys.exit(1)
+
+    analyst = FirmwareAnalyst(target)
+    rust_results = analyst.run_rust_engine(deep_scan=True)
+    yara_results = analyst.run_yara_engine()
     
-    report_path = os.path.join(reports_dir, "security_report.json")
-    try:
-        with open(report_path, "w") as f:
-            json.dump(report_data, f, indent=4)
-        print(f"\n[+] Analysis report successfully saved to: {report_path}")
-    except Exception as e:
-        print(f"\n[!] Failed to save report: {e}")
+    is_threat = analyst.evaluate_threats(rust_results, yara_results)
+    analyst.save_forensic_evidence()
+    
+    # Final Terminal Output
+    print("\n" + "="*40)
+    print(f" FINAL VERDICT: {analyst.report_data['verdict']} ")
+    print("="*40)
+    if is_threat:
+        for reason in analyst.report_data["threat_reasons"]:
+            print(f" [!] {reason}")
+    else:
+        print(" [√] No known malicious patterns identified.")
+    print("="*40 + "\n")
 
 if __name__ == "__main__":
-    target = sys.argv[1] if len(sys.argv) > 1 else "./assets/untrusted_firmware.efi"
-    if not os.path.exists(target):
-        # Create a dummy file for simulation if it doesn't exist
-        with open(target, "wb") as f:
-            f.write(os.urandom(1024))
-            
-    consolidate_report(target)
+    main()
