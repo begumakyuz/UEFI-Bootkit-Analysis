@@ -126,17 +126,20 @@ impl SignatureEngine {
     pub fn scan(&self, data: &[u8]) -> Result<Vec<SignatureHit>, AnalyzerError> {
         let mut hits = Vec::new();
 
+        // Iterate through each forensic signature in the database.
         for sig in &self.signatures {
-            // Optimization: Skip patterns longer than data to avoid OOB
+            // Efficiency check: If the pattern is longer than the remaining data, 
+            // a match is impossible. Skip to prevent unnecessary processing or OOB errors.
             if sig.pattern.len() > data.len() {
                 continue;
             }
 
-            // Iterate over the data searching for the pattern
-            // We use windows() to iterate over sliding windows of the pattern length
+            // Perform a memory-safe sliding window scan across the byte buffer.
+            // This ensures every possible offset is checked for the malicious pattern.
             for (offset, window) in data.windows(sig.pattern.len()).enumerate() {
-                // If a match is found, record the offset and metadata
+                // Byte-by-byte comparison of the current window against the signature pattern.
                 if window == sig.pattern.as_slice() {
+                    // Match found: Package the forensic hit with its associated metadata.
                     hits.push(SignatureHit {
                         signature_name: sig.name.clone(),
                         offset,
@@ -147,6 +150,7 @@ impl SignatureEngine {
             }
         }
 
+        // Return the collection of all detected forensic signatures.
         Ok(hits)
     }
 
