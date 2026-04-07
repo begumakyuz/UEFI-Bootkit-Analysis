@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
 
 # UEFITool (CLI version) kurulumu
 # Using a more robust download link for UEFIExtract
-RUN wget -q https://github.com/LongSoft/UEFITool/releases/download/A68/UEFIExtract_0.28.0_linux.zip -O /tmp/uefitool.zip \
+RUN wget -q https://github.com/LongSoft/UEFITool/releases/download/A68/UEFIExtract_NE_A68_x64_linux.zip -O /tmp/uefitool.zip \
     && unzip -q /tmp/uefitool.zip -d /usr/local/bin/ \
     && chmod +x /usr/local/bin/UEFIExtract || echo "UEFIExtract installation failed, skipping..."
 
@@ -28,7 +28,10 @@ WORKDIR /sandbox
 # Kodların konteynere aktarılması
 COPY --chown=analyst:analyst . .
 
+# Reports klasörü oluştur ve yetkilendir
+RUN mkdir -p /sandbox/reports && chown analyst:analyst /sandbox/reports
+
 # Konteyner güvenliği: Analizi kısıtlı kullanıcı yetkileriyle başlat (Rootless)
 USER analyst
 
-ENTRYPOINT ["python3", "./scripts/resolve_gbs.py"]
+ENTRYPOINT ["python3", "./scripts/firmware_integrity.py"]

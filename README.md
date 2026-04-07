@@ -12,7 +12,7 @@
 **Rol:** Güvenlik Uzmanı / Sistem Mimarı  
 **Odak:** Açık Kaynak Güvenlik Mimarisi ve Ring-2 (EFI/UEFI) Bypass Çıkarımları  
 **Analiz Edilen Proje:** [go-gitea/gitea](https://github.com/go-gitea/gitea)  
-**Danışman Hocamız:** Keyvan Aresteh Abbasabad  
+**Danışman Hocamız:** Keyvan Arasteh Abbasabad  
 
 ## İçindekiler
 - [🎬 Demo](#-demo)
@@ -63,21 +63,26 @@ Bu proje, sadece basit bir analizörden tam teşekküllü bir **UEFI Güvenlik S
 
 Hoca / Denetmen olarak bu repoyu lokalinizde denemek isterseniz şu adımları izleyin:
 
-### 1. Çalıştırma (Docker Compose & Env)
-Proje artık tam teşekküllü bir `.env` altyapısı ve `docker-compose.yml` barındırmaktadır:
+### 1. Çalıştırma (Docker Compose & Persistence)
+Proje artık tam teşekküllü bir `.env` altyapısı ve otomatik raporlama (persistence) katmanı barındırmaktadır:
 ```bash
-# Repo indirilir
+# Repo indirilir ve kurulum scripti çalıştırılır
 git clone https://github.com/begumakyuz/UEFI-Bootkit-Analysis.git
 cd UEFI-Bootkit-Analysis
+bash install.sh
 
-# Güvenlik Konfigürasyonu Kopyalanır (.env oluşturulur)
-cp .env.example .env
-
-# UEFI Analiz Sandbox'ı Rootless Modda Ayağa Kaldırılır
-docker compose up -d
+# UEFI Analiz Sandbox'ı ayağa kaldırılır
+docker compose up --build
 ```
 
-### 2. Kod Testlerinin Koşturulması (Tests)
+### 2. Raporların Görüntülenmesi (Persistence)
+Analiz tamamlandığında, sonuçlar konteyner içinde hapsolmaz. Docker volume mimarisi sayesinde **bilgisayarınızdaki `./reports` klasörüne** `security_report.json` olarak kaydedilir:
+```bash
+# Yerel diskinizdeki raporu inceleyin
+cat ./reports/security_report.json
+```
+
+### 3. Kod Testlerinin Koşturulması (Tests)
 Yazılan güvenlik tarama kodlarının otomasyon testlerini çalıştırmak için `tests/` klasörü hazırlanmıştır:
 ```bash
 # Python unittest ile otomatik senaryoları çalıştırın

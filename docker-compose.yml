@@ -12,6 +12,7 @@ services:
       - ./assets:/sandbox/assets
       - ./yara:/sandbox/yara
       - ./scripts:/sandbox/scripts
+      - ./reports:/sandbox/reports
     ports:
       - "${DOCKER_PORT:-8080}:8080"
     restart: unless-stopped

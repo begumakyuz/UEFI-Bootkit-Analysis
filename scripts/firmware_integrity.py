@@ -60,6 +60,13 @@ def consolidate_report(file_path):
     rust_report = run_rust_analysis(file_path)
     yara_matches = run_yara_scan(file_path)
     
+    report_data = {
+        "target": os.path.basename(file_path),
+        "verdict": "CLEAN",
+        "rust_anomalies": rust_report,
+        "yara_matches": yara_matches
+    }
+    
     print("\n--- [VERDICT] ---")
     
     is_malicious = False
@@ -75,11 +82,25 @@ def consolidate_report(file_path):
         is_malicious = True
         
     if is_malicious:
+        report_data["verdict"] = "MALICIOUS"
         print("\n[CONCLUSION]: MALICIOUS PAYLOAD DETECTED.")
         print("ACTION: Quarantine file and perform SPI Flash integrity check.")
     else:
         print("\n[CONCLUSION]: NO IMMEDIATE THREAT DETECTED.")
         print("ACTION: Monitor for Runtime Services API hooking.")
+
+    # Save report to persistence layer
+    reports_dir = "/sandbox/reports"
+    if not os.path.exists(reports_dir):
+        os.makedirs(reports_dir, exist_ok=True)
+    
+    report_path = os.path.join(reports_dir, "security_report.json")
+    try:
+        with open(report_path, "w") as f:
+            json.dump(report_data, f, indent=4)
+        print(f"\n[+] Analysis report successfully saved to: {report_path}")
+    except Exception as e:
+        print(f"\n[!] Failed to save report: {e}")
 
 if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 else "./assets/untrusted_firmware.efi"

@@ -50,8 +50,8 @@ jobs:
             README.md
             LICENSE
             docker-compose.yml
+            .env.example
           generate_release_notes: true
-          allow_updates: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -64,10 +64,10 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-          allow_updates: true
           files: |
             README.md
             LICENSE
             docker-compose.yml
+            .env.example
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
