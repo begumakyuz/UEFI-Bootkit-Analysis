@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 pelite = "0.10.0" # PE binary parsing and IAT mapping
+goblin = "0.7.1" # Multi-format binary analysis (ELF/Mach-O)
 clap = { version = "4.4.7", features = ["derive"] } # CLI parsing
 serde = { version = "1.0", features = ["derive"] } # JSON structuring
 serde_json = "1.0" # JSON Output
