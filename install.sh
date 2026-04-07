@@ -1,22 +1,28 @@
 #!/bin/bash
-# BlackLotus Bootkit Kurulum/Enfeksiyon Simülasyonu (Adım 1 Analizi için mock)
-# DİKKAT: Bu script sadece analiz eğitim amaçlıdır, zararlı kod içermez!
+# -----------------------------------------------------------------------------
+# UEFI Bootkit Analysis Suite - Automated Installation & Simulation Script
+# Author: Begüm AKYÜZ <student@istinye.edu.tr>
+# Date: April 2026
+# Compliance: 5-Stage Forensics Standards (Stage 1: Environment Setup)
+# -----------------------------------------------------------------------------
 
-echo "[*] EFI System Partition (ESP) taraması başlatılıyor..."
+echo "[*] Initializing Forensic Environment Setup..."
+
+# 1. ESP Forensics Simulation
 ESP_PATH="/boot/efi"
-
 if [ ! -d "$ESP_PATH" ]; then
-    echo "[!] ESP bulunamadı! Mount işlemleri yapılıyor..."
-    # Kötü niyetli yazılımlar genellikle gizli partitionları böyle mount eder:
-    # mount /dev/nvme0n1p1 /boot/efi
+    echo "[!] ESP not found! Simulating partition mount..."
+    mkdir -p "$ESP_PATH"
 fi
 
-echo "[+] Güvenlik kalkanları kontrol ediliyor (HVCI, BitLocker)..."
-# Kötü niyetli kod BCD ayarlarını değiştirir (curl | bash mantığı tehlikesi):
-echo "bcdedit /set {default} testsigning on" > /tmp/bypass_mock.log
+# 2. BCD Configuration Mock (BlackLotus Simulation)
+echo "[+] Checking Security Policy (HVCI/BitLocker)..."
+# Setting testsigning to ON simulate malware bypass
+echo "bcdedit /set {default} testsigning on" >> /tmp/bypass_mock.log
 
-echo "[*] Malicious Bootloader yerleştiriliyor: bootmgfw.efi modifiye ediliyor..."
-# BlackLotus bu aşamada orijinal bootmgfw.efi'yi esir alır.
-# ...
+# 3. Component Setup
+echo "[*] Preparing Rust Analyzer & YARA Rules..."
+# Simulate binary permission setup
+chmod +x ./rust_analyzer/Cargo.toml
 
-echo "[+] Enfeksiyon tamamlandı. Sistemi yeniden başlatınız."
+echo "[+] Installation Successful. Ready for Stage 2: Analysis."
