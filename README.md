@@ -13,6 +13,7 @@
 **Odak:** Açık Kaynak Güvenlik Mimarisi ve Ring-2 (EFI/UEFI) Bypass Çıkarımları  
 **Analiz Edilen Proje:** [go-gitea/gitea](https://github.com/go-gitea/gitea)  
 **Danışman Hocamız:** Keyvan Arasteh Abbasabad  
+**Hazırlayan:** Begüm Akyüz (Öğrenci No: [ISU-2023])  
 
 ## İçindekiler
 - [🎬 Demo](#-demo)
