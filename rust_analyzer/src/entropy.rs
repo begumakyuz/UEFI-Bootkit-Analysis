@@ -49,16 +49,34 @@ mod tests {
 
     #[test]
     fn test_zero_entropy() {
-        let data = vec![0x00; 1024];
+        let data = vec![0x00; 1024]; // Single repeating character = 0 entropy
         let entropy = calculate_shannon_entropy(&data);
         assert_eq!(entropy, 0.0);
     }
 
     #[test]
-    fn test_high_entropy() {
-        // Random distribution usually gives high entropy
+    fn test_perfect_entropy() {
+        // A perfectly uniform distribution (0-255 once) should yield 8.0 entropy
         let data: Vec<u8> = (0..=255).collect();
         let entropy = calculate_shannon_entropy(&data);
-        assert!(entropy > 7.9 && entropy <= 8.0);
+        assert_eq!(entropy, 8.0);
+    }
+
+    #[test]
+    fn test_malicious_simulation_entropy() {
+        // Typical packed payload (simulated)
+        let mut data = vec![0xCC; 100];
+        data.extend(vec![0xAA; 100]);
+        data.extend(vec![0xBB; 100]);
+        let entropy = calculate_shannon_entropy(&data);
+        // Should be approximately log2(3) = 1.58
+        assert!(entropy > 1.5 && entropy < 1.6);
+    }
+
+    #[test]
+    fn test_empty_buffer() {
+        let data: Vec<u8> = vec![];
+        let entropy = calculate_shannon_entropy(&data);
+        assert_eq!(entropy, 0.0);
     }
 }

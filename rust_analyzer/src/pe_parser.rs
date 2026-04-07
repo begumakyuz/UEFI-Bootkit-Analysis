@@ -86,3 +86,23 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, String> {
         is_suspicious,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_suspicion_logic() {
+        // Logic check: High entropy + small IAT = suspicious
+        let packed_sections_count = 1;
+        let iat_size = 5;
+        let is_suspicious = packed_sections_count > 0 && iat_size < IAT_SUSPICIOUS_THRESHOLD;
+        assert!(is_suspicious);
+
+        // Logic check: High entropy + large IAT = NOT suspicious (likely legitimate compression)
+        let packed_sections_count = 1;
+        let iat_size = 50;
+        let is_suspicious = packed_sections_count > 0 && iat_size < IAT_SUSPICIOUS_THRESHOLD;
+        assert!(!is_suspicious);
+    }
+}
