@@ -1,3 +1,4 @@
+pub mod templates;
 pub mod html_reporter;
 pub mod yara_parser;
 pub mod disassembler;
