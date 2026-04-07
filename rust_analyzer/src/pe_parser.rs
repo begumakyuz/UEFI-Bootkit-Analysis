@@ -20,6 +20,10 @@ pub struct PEAnalysisResult {
     pub sections: Vec<SectionAnalysis>,
     pub iat_size: usize,
     pub is_suspicious: bool,
+    pub machine: u16,
+    pub subsystem: u16,
+    pub entry_point: u32,
+    pub image_base: u64,
 }
 
 const ENTROPY_THRESHOLD: f64 = 7.2;
@@ -36,6 +40,9 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, AnalyzerError> {
         Err(e) => return Err(AnalyzerError::PeParseError(e.to_string())),
     };
 
+    let optional_header = pe.optional_header();
+    let file_header = pe.file_header();
+
     let mut sections = Vec::new();
     let mut packed_sections_count = 0;
 
@@ -43,7 +50,6 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, AnalyzerError> {
         let name_bytes = &section.Name;
         let name = String::from_utf8_lossy(name_bytes).trim_matches('\0').to_string();
         
-        // Extract raw bytes for the section
         let raw_data = match pe.get_section_bytes(section) {
             Ok(bytes) => bytes,
             Err(_) => continue,
@@ -79,6 +85,10 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, AnalyzerError> {
         sections,
         iat_size,
         is_suspicious,
+        machine: file_header.Machine,
+        subsystem: optional_header.Subsystem,
+        entry_point: optional_header.AddressOfEntryPoint,
+        image_base: optional_header.ImageBase,
     })
 }
 

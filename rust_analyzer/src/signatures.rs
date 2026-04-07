@@ -73,7 +73,39 @@ impl SignatureEngine {
             severity: Severity::Medium,
         });
 
-        // 4. Custom Section Name Analysis (Malware often uses non-standard names)
+        // 4. Loax Malware Pattern (UEFI DXE Driver Hijack)
+        signatures.push(ForensicSignature {
+            name: "Loax_DXE_Hijack".to_string(),
+            description: "Detects patterns associated with Loax (ESET) UEFI rootkits targeting DXE drivers.".to_string(),
+            pattern: vec![0x41, 0x57, 0x41, 0x56, 0x41, 0x55, 0x41, 0x54, 0x55, 0x53],
+            severity: Severity::High,
+        });
+
+        // 5. MoonBounce Memory Pattern (SPI Flash to RAM stealth)
+        signatures.push(ForensicSignature {
+            name: "MoonBounce_Core".to_string(),
+            description: "Identified in MoonBounce malicious SPI flash implants.".to_string(),
+            pattern: vec![0x31, 0xC0, 0x48, 0xBB, 0xD0, 0x01, 0x00, 0x00],
+            severity: Severity::Critical,
+        });
+
+        // 6. ESP-Ldr Boot Loader Tampering
+        signatures.push(ForensicSignature {
+            name: "ESP_Ldr_Tamper".to_string(),
+            description: "Detects modifications to the Windows EFI Boot Loader (bootmgfw.efi).".to_string(),
+            pattern: vec![0xBC, 0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA],
+            severity: Severity::High,
+        });
+
+        // 7. MosaicRegressor Shell Pattern
+        signatures.push(ForensicSignature {
+            name: "MosaicRegressor_Shell".to_string(),
+            description: "Known shellcode used by MosaicRegressor UEFI implants.".to_string(),
+            pattern: vec![0x48, 0x31, 0xD2, 0x65, 0x48, 0x8B, 0x52, 0x60],
+            severity: Severity::Critical,
+        });
+
+        // 8. Custom Section Name Analysis (Malware often uses non-standard names)
         signatures.push(ForensicSignature {
             name: "NonStandard_Section_Ref".to_string(),
             description: "References to suspicious non-standard section names in data blocks.".to_string(),
@@ -87,13 +119,15 @@ impl SignatureEngine {
     /// Scans a raw byte buffer for all registered signatures.
     /// 
     /// This uses a brute-force search suitable for UEFI firmware blocks. 
+    /// Brute-force is chosen here for its simplicity and reliability in 
+    /// firmware forensics where file sizes are typically small (< 5MB).
     /// For massive binaries, a more advanced algorithm (Aho-Corasick) 
-    /// would be implemented in future versions.
+    /// would be implemented in future versions for O(n) complexity.
     pub fn scan(&self, data: &[u8]) -> Result<Vec<SignatureHit>, AnalyzerError> {
         let mut hits = Vec::new();
 
         for sig in &self.signatures {
-            // Optimization: Skip patterns longer than data
+            // Optimization: Skip patterns longer than data to avoid OOB
             if sig.pattern.len() > data.len() {
                 continue;
             }
@@ -101,7 +135,7 @@ impl SignatureEngine {
             // Iterate over the data searching for the pattern
             // We use windows() to iterate over sliding windows of the pattern length
             for (offset, window) in data.windows(sig.pattern.len()).enumerate() {
-                // If a match is found
+                // If a match is found, record the offset and metadata
                 if window == sig.pattern.as_slice() {
                     hits.push(SignatureHit {
                         signature_name: sig.name.clone(),
@@ -118,12 +152,16 @@ impl SignatureEngine {
 
     /// Provides a human-readable recommendation based on the detected signature.
     /// 
-    /// These recommendations follow NIST/CISA guidelines for firmware forensics.
+    /// These recommendations follow NIST/CISA guidelines for firmware forensics
+    /// and incident response (IR).
     fn get_recommendation(&self, sig_name: &str) -> String {
         match sig_name {
             "BlackLotus_Loader_Pattern" => "IMMEDIATE ACTION REQUIRED: Re-flash BIOS and perform hardware audit.".to_string(),
             "CosmicStrand_Hook" => "THREAT DETECTED: Investigating UEFI Service Tables (ST) for hooks is advised.".to_string(),
             "Generic_Shellcode_Sled" => "SUSPICIOUS: Check for potential exploit attempts or broken compiler configs.".to_string(),
+            "Loax_DXE_Hijack" => "CRITICAL: DXE driver has been modified. Possible SPI Flash implant.".to_string(),
+            "MoonBounce_Core" => "FATAL: MoonBounce detected. UEFI Firmware integrity has been compromised at rest.".to_string(),
+            "MosaicRegressor_Shell" => "URGENT: Known APT UEFI implant detected. Isolate host immediately.".to_string(),
             _ => "MONITOR: Log the event and cross-reference with system logs.".to_string(),
         }
     }
