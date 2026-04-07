@@ -2,6 +2,8 @@ pub mod entropy;
 pub mod pe_parser;
 pub mod elf_parser;
 pub mod error;
+pub mod signatures;
+pub mod reporter;
 
 pub use crate::error::AnalyzerError;
 pub use crate::pe_parser::{analyze_pe_file, PEAnalysisResult};
@@ -14,5 +16,6 @@ use serde::{Deserialize, Serialize};
 pub enum SecurityVerdict {
     PE(PEAnalysisResult),
     ELF(ELFAnalysisResult),
+    SIGNATURES { file: String, hits: Vec<signatures::SignatureHit> },
     UNKNOWN { file: String, error: String },
 }
