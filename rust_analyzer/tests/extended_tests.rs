@@ -1,4 +1,4 @@
-use rust_analyzer::{html_reporter::HtmlReporter, config::EngineConfig, pe_parser::{analyze_pe_file, SectionAnalysis}};
+use rust_analyzer::{html_reporter::HtmlReporter, config::EngineConfig, pe_parser::SectionAnalysis};
 
 #[test]
 fn test_html_dashboard_generation() {

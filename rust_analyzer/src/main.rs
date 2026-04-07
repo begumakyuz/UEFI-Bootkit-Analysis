@@ -146,7 +146,7 @@ fn main() {
                 match res {
                     SecurityVerdict::PE(res) => {
                         println!("| > Module: PE Firmware Binary ({})", if res.is_suspicious { "🚩" } else { "✅" });
-                        println!("|   - Max Entropy: {:.4}", res.entropy_explanation);
+                        println!("|   - Max Entropy: {}", res.entropy_explanation);
                         println!("|   - EP State: 0x{:X} ({})", res.entry_point, if res.ep_is_suspicious { "ANOMALOUS" } else { "NORMAL" });
                     }
                     SecurityVerdict::SIGNATURES { file: _, hits } => {
