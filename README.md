@@ -30,6 +30,14 @@
 
 Aşağıdaki **2 dakikalık kapsamlı test videosunda**, Antigravity AI tarafından projenin tüm bileşenlerinin (Rust Analizörü, Docker İzolasyonu, YARA Kuralları ve Forensics Temizliği) başarıyla test edildiği gösterilmektedir:
 
+
+https://github.com/user-attachments/assets/bc1c3105-7bd7-489b-9236-36fc98d6b3fc
+
+
+
+https://github.com/user-attachments/assets/74842a60-dd9f-4a32-9980-e96a14b56666
+
+
 <p align="center">
   <img src="demo/project-demo.webp" width="100%" alt="Functional Project Test Demo">
 </p>
