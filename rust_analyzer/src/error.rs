@@ -20,7 +20,7 @@ impl fmt::Display for AnalyzerError {
 }
 
 impl From<std::io::Error> for AnalyzerError {
-    fn from(error: std::io.Error) -> Self {
+    fn from(error: std::io::Error) -> Self {
         AnalyzerError::IoError(error)
     }
 }
