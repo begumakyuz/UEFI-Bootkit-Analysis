@@ -11,14 +11,21 @@ import sys
 import os
 import math
 
-def calculate_entropy_of_block(data):
-    """Calculates Shannon entropy for a block of bytes."""
+def calculate_shannon_entropy_of_block(data):
+    """
+    Calculates the Shannon entropy (H) for a given block of binary data.
+    
+    Formula: H = -Sum(p_i * log2(p_i))
+    Where p_i is the probability of a specific byte value appearing in the data.
+    """
     if not data:
         return 0
     entropy = 0
+    # Calculate the frequency probability of each unique byte
     probs = [data.count(b) / len(data) for b in set(data)]
     for p in probs:
         if p > 0:
+            # Apply the Shannon entropy formula
             entropy -= p * math.log2(p)
     return entropy
 
@@ -34,18 +41,26 @@ def draw_entropy_chart(file_path, block_size=1024):
         segments = [data[i:i+block_size] for i in range(0, len(data), block_size)]
         
         for i, segment in enumerate(segments):
-            entropy = calculate_entropy_of_block(segment)
-            bar_len = int(entropy * 5) # Scale to 40 chars max (8 * 5)
+            # Calculate the entropy for the current block
+            # Entropy values range from 0 (ordered) to 8 (random/packed)
+            entropy = calculate_shannon_entropy_of_block(segment)
             
-            # Color indicator (simulated with characters)
+            # Map entropy (0-8) to a bar length (0-40 characters)
+            # This provides a quick visual cue for packed/encrypted sections.
+            bar_len = int(entropy * 5) 
+            
+            # Categorize the safety level based on the entropy score
+            # 7.2 is the industry standard threshold for suspected packing.
             indicator = "[ OK ]"
-            if entropy > 7.0:
+            if entropy > 7.1:
                 indicator = "[PACKED]"
-            elif entropy > 6.0:
+            elif entropy > 6.4:
                 indicator = "[SUSP]"
                 
             offset = i * block_size
-            print(f"0x{offset:06X} | {'█' * bar_len}{' ' * (40 - bar_len)} | {entropy:.2f} {indicator}")
+            # Format the output with offset, bar, and numerical score
+            # We use '#' instead of blocks to ensure compatibility with all shells.
+            print(f"0x{offset:06X} | {'#' * bar_len}{' ' * (40 - bar_len)} | {entropy:.2f} {indicator}")
             
     except Exception as e:
         print(f"[!] Visualization failed: {e}")
