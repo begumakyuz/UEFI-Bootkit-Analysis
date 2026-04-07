@@ -2,6 +2,7 @@ use pelite::pe64::{Pe, PeFile};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use crate::entropy::calculate_shannon_entropy;
+use crate::error::AnalyzerError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SectionAnalysis {
@@ -22,24 +23,22 @@ pub struct PEAnalysisResult {
 }
 
 const ENTROPY_THRESHOLD: f64 = 7.2;
-const IAT_SUSPICIOUS_THRESHOLD: usize = 10; // Few imports usually mean runtime unpacking
+const IAT_SUSPICIOUS_THRESHOLD: usize = 10;
 
-pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, String> {
-    // Read raw byte stream mapping Virtual Address (VA) to Raw Offset internally via pelite
+pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, AnalyzerError> {
     let file_map = match pelite::FileMap::open(path) {
         Ok(m) => m,
-        Err(e) => return Err(format!("Failed to open file: {}", e)),
+        Err(e) => return Err(AnalyzerError::PeParseError(e.to_string())),
     };
 
     let pe = match PeFile::from_bytes(file_map.as_ref()) {
         Ok(p) => p,
-        Err(e) => return Err(format!("Failed to parse PE file: {}", e)),
+        Err(e) => return Err(AnalyzerError::PeParseError(e.to_string())),
     };
 
     let mut sections = Vec::new();
     let mut packed_sections_count = 0;
 
-    // Map section headers and calculate entropy from raw byte streams
     for section in pe.section_headers() {
         let name_bytes = &section.Name;
         let name = String::from_utf8_lossy(name_bytes).trim_matches('\0').to_string();
@@ -47,7 +46,7 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, String> {
         // Extract raw bytes for the section
         let raw_data = match pe.get_section_bytes(section) {
             Ok(bytes) => bytes,
-            Err(_) => continue, // Skip unmapped or zero-byte sections
+            Err(_) => continue,
         };
 
         let entropy = calculate_shannon_entropy(raw_data);
@@ -66,17 +65,13 @@ pub fn analyze_pe_file(path: &str) -> Result<PEAnalysisResult, String> {
         });
     }
 
-    // Correlate with IAT anomalies
-    // Extract Import Address Table (IAT) safely
     let mut iat_size = 0;
     if let Ok(imports) = pe.imports() {
         for _ in imports {
-            // Count total imported DLLs/functions roughly by iterating
             iat_size += 1; 
         }
     }
 
-    // Heuristics: High entropy sections + unusually small IAT = definitely packed/encrypted
     let is_suspicious = packed_sections_count > 0 && iat_size < IAT_SUSPICIOUS_THRESHOLD;
 
     Ok(PEAnalysisResult {

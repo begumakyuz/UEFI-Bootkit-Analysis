@@ -1,17 +1,14 @@
-mod entropy;
-mod pe_parser;
-
 use clap::Parser;
-use pe_parser::analyze_pe_file;
-use serde_json;
+use rust_analyzer::{analyze_pe_file, analyze_elf_file, SecurityVerdict};
+use std::path::Path;
 
 #[derive(Parser)]
 #[command(name = "Begum Akyuz - UEFI Security Suite")]
 #[command(author = "Begüm AKYÜZ <student@istinye.edu.tr>")]
 #[command(version = "2.0")]
-#[command(about = "Advanced Static Analysis Tool for determining PE/ELF malformities based on Shannon Entropy, IAT correlation, and CRC32 Header Integrity.", long_about = None)]
+#[command(about = "Advanced Multi-Format (PE/ELF) Static Analysis Tool for determining UEFI/Bootloader malformities.", long_about = None)]
 struct Cli {
-    /// Path to the PE/ELF file to analyze
+    /// Path to the binary file (EFI/ELF) to analyze
     #[arg(short, long)]
     file: String,
 
@@ -22,33 +19,52 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
+    let path = Path::new(&cli.file);
 
-    match analyze_pe_file(&cli.file) {
-        Ok(analysis_result) => {
-            if cli.output.to_lowercase() == "json" {
-                match serde_json::to_string_pretty(&analysis_result) {
-                    Ok(json) => println!("{}", json),
-                    Err(e) => eprintln!("Failed to serialize to JSON: {}", e),
-                }
-            } else {
-                // ASCII Output
-                println!("--- BEGUM AKYUZ SECURITY SUITE: EFI REPORT ---");
-                println!("Target Asset: {}", analysis_result.file_path);
-                println!("IAT Import Count: {}", analysis_result.iat_size);
-                println!("Security Status: {}", if analysis_result.is_suspicious { "🚩 MALICIOUS/SUSPICIOUS" } else { "✅ CLEAN" });
-                println!("CRC32 Header Integrity: [MATCHED (Calculated: 0xFC72A1B0)]"); // Simulated CRC check for depth
-                println!("\nSection Breakdown:");
-                for sec in &analysis_result.sections {
-                    println!(
-                        "  - [{:<8}] VA: 0x{:08X} Size: {:<6} Entropy: {:.4} (Packed: {})",
-                        sec.name, sec.virtual_address, sec.raw_data_size, sec.entropy, sec.is_packed
-                    );
-                }
-                println!("\n[RECOMMENDATION]: Perform SMM (Ring -2) forensic dump if suspicious.");
+    if !path.exists() {
+        eprintln!("Error: File not found at {}", cli.file);
+        return;
+    }
+
+    // Auto-detect format and analyze
+    let verdict = match analyze_pe_file(&cli.file) {
+        Ok(pe_res) => SecurityVerdict::PE(pe_res),
+        Err(_) => {
+            // If PE fails, try ELF
+            match analyze_elf_file(&cli.file) {
+                Ok(elf_res) => SecurityVerdict::ELF(elf_res),
+                Err(e) => SecurityVerdict::UNKNOWN {
+                    file: cli.file.clone(),
+                    error: format!("Failed to parse as PE or ELF: {}", e),
+                },
             }
         }
-        Err(e) => {
-            eprintln!("Error analyzing file: {}", e);
+    };
+
+    if cli.output.to_lowercase() == "json" {
+        match serde_json::to_string_pretty(&verdict) {
+            Ok(json) => println!("{}", json),
+            Err(e) => eprintln!("Failed to serialize to JSON: {}", e),
+        }
+    } else {
+        // Professional ASCII Report
+        println!("--- BEGUM AKYUZ SECURITY SUITE: AUDIT REPORT ---");
+        match verdict {
+            SecurityVerdict::PE(res) => {
+                println!("Format: Portable Executable (UEFI/EFI)");
+                println!("Verdict: {}", if res.is_suspicious { "🚩 MALICIOUS" } else { "✅ CLEAN" });
+                println!("Imports: {}", res.iat_size);
+            }
+            SecurityVerdict::ELF(res) => {
+                println!("Format: ELF (Legacy/Linux Bootloader)");
+                println!("Verdict: ✅ ANALYZED");
+                println!("Entry Point: 0x{:08X}", res.entry_point);
+            }
+            SecurityVerdict::UNKNOWN { file, error } => {
+                println!("File: {}", file);
+                println!("Status: ❌ ERROR");
+                println!("Detail: {}", error);
+            }
         }
     }
 }
