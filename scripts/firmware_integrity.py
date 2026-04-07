@@ -92,42 +92,53 @@ class FirmwareAnalyst:
             return []
 
     def evaluate_threats(self, rust_data, yara_matches):
-        """Aggregates multi-engine results to produce a final security verdict."""
+        """
+        Aggregates multi-engine results to produce a final security verdict.
+        Handles data from Rust Core (Static) and YARA (String-based signatures).
+        """
         is_suspicious = False
         reasons = []
 
-        # Analyze Rust Core Findings
+        # Step A: Analyze Rust Core Findings for structural anomalies.
         if rust_data:
             for verdict in rust_data:
                 v_type = verdict.get("type")
                 if v_type == "PE":
+                    # Check for high-entropy sections indicative of packing.
                     if verdict.get("entropy", 0) > 7.2:
                         is_suspicious = True
                         reasons.append(f"High Entropy ({verdict['entropy']:.2f}) - Packed Payload?")
                 elif v_type == "SIGNATURES":
+                    # Check for deep forensic signature hits.
                     hits = verdict.get("hits", [])
                     if hits:
                         is_suspicious = True
                         reasons.append(f"{len(hits)} Deep Signatures Triggered.")
 
-        # Analyze YARA Matches
+        # Step B: Analyze YARA Matches for legacy/known malware strings.
         if yara_matches:
             is_suspicious = True
             reasons.append(f"{len(yara_matches)} YARA String matches detected.")
 
+        # Assign final verdict based on composite findings.
         self.report_data["verdict"] = "MALICIOUS" if is_suspicious else "CLEAN"
         self.report_data["threat_reasons"] = reasons
         
         return is_suspicious
 
     def save_forensic_evidence(self):
-        """Persists the consolidated report to the forensic reports directory."""
+        """
+        Persists the consolidated report to the forensic reports directory.
+        This provides a permanent audit trail for incident response teams.
+        """
         reports_dir = "./reports"
+        # Ensure the persistence directory exists before writing.
         os.makedirs(reports_dir, exist_ok=True)
         
         report_path = os.path.join(reports_dir, "security_audit_v3.json")
         try:
             with open(report_path, "w") as f:
+                # Export the complete report structure as a pretty-printed JSON blob.
                 json.dump(self.report_data, f, indent=4)
             logging.info(f"Forensic bundle saved: {report_path}")
         except Exception as e:
