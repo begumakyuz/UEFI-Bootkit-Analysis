@@ -1,4 +1,4 @@
-use goblin::elf::{Elf, SectionHeader};
+use goblin::elf::Elf;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use crate::entropy::calculate_shannon_entropy;
@@ -31,7 +31,6 @@ pub fn analyze_elf_file(path: &str) -> Result<ELFAnalysisResult, AnalyzerError> 
     for section in &elf.section_headers {
         let name = elf.shdr_strtab.get_at(section.sh_name).unwrap_or("unknown");
         
-        // Calculate entropy for the section's raw bytes
         let start = section.sh_offset as usize;
         let end = start + section.sh_size as usize;
         

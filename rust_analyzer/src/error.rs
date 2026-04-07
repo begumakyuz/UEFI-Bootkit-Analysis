@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum AnalyzerError {
-    IoError(std::io.Error),
+    IoError(std::io::Error),
     PeParseError(String),
     ElfParseError(String),
     UnsupportedFormat(String),
@@ -19,7 +19,7 @@ impl fmt::Display for AnalyzerError {
     }
 }
 
-impl From<std::io.Error> for AnalyzerError {
+impl From<std::io::Error> for AnalyzerError {
     fn from(error: std::io.Error) -> Self {
         AnalyzerError::IoError(error)
     }
